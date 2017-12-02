@@ -1,7 +1,7 @@
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
 
-#define MAP_DIM_MAX 20
+#define MAP_DIM_MAX 32
 #define TILE_SIZE 20
 #define WALK_SPEED 40
 #define CLONE_CNT_MAX 32
@@ -48,24 +48,42 @@ struct player {
 	u32 num_clones;
 };
 
-#define gi_tile_blank   { .type = TILE_BLANK  }
-#define gi_tile_wall    { .type = TILE_WALL   }
-#define gi_tile_player  { .type = TILE_PLAYER }
-#define gi_tile_clone   { .type = TILE_CLONE  }
-#define gi_tile_door    { .type = TILE_DOOR   }
+static
+b32 load_maps(struct map **maps)
+{
+	b32 success = false;
+	u32 n;
+	FILE *fp;
 
-const struct map g_map0 = {
-	.dim = { .x = 7, .y = 5 },
-	.tiles = {
-		{ gi_tile_wall,  gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall },
-		{ gi_tile_wall,  gi_tile_player, gi_tile_blank,  gi_tile_blank,  gi_tile_blank,  gi_tile_door,   gi_tile_wall },
-		{ gi_tile_wall,  gi_tile_blank,  gi_tile_clone,  gi_tile_blank,  gi_tile_blank,  gi_tile_blank,  gi_tile_wall },
-		{ gi_tile_wall,  gi_tile_blank,  gi_tile_blank,  gi_tile_blank,  gi_tile_clone,  gi_tile_blank,  gi_tile_wall },
-		{ gi_tile_wall,  gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall },
-	},
-};
+	fp = fopen("maps.vson", "r");
+	if (!fp)
+		return false;
 
-const struct map *g_maps[] = { &g_map0 };
+	if (!vson_read_u32(fp, "maps", &n))
+		goto out;
+
+	for (u32 i = 0; i < n; ++i) {
+		struct map map;
+		char tiles[MAP_DIM_MAX * MAP_DIM_MAX];
+		if (!vson_read_s32(fp, "width", &map.dim.x))
+			goto out;
+		if (!vson_read_s32(fp, "height", &map.dim.y))
+			goto out;
+		if (   !vson_read_str(fp, "tiles", tiles, MAP_DIM_MAX * MAP_DIM_MAX)
+		    || strlen(tiles) != map.dim.x * map.dim.y)
+			goto out;
+		for (s32 i = 0; i < map.dim.y; ++i)
+			for (s32 j = 0; j < map.dim.x; ++j)
+				map.tiles[i][j].type = tiles[i * map.dim.x + j] - '0';
+		array_append(*maps, map);
+	}
+	success = true;
+
+out:
+	if (!success)
+		array_clear(*maps);
+	return success;
+}
 
 static
 void level_init(struct level *level, const struct map *map)
@@ -171,6 +189,7 @@ int main(int argc, char *const argv[]) {
 	struct level level;
 	struct player player;
 	u32 frame_milli = 0;
+	array(struct map) maps;
 
 	log_add_std(LOG_STDOUT);
 	
@@ -178,7 +197,14 @@ int main(int argc, char *const argv[]) {
 	if (!gui)
 		return 1;
 
-	level_init(&level, g_maps[level_idx]);
+	maps = array_create();
+	if (!maps)
+		goto err_maps_create;
+
+	if (!load_maps(&maps) || array_empty(maps))
+		goto err_maps_load;
+
+	level_init(&level, &maps[level_idx]);
 	player_init(&player, &level);
 
 	while (!quit && gui_begin_frame(gui)) {
@@ -314,13 +340,13 @@ int main(int argc, char *const argv[]) {
 
 		if (   level.map.tiles[player.tile.y][player.tile.x].type == TILE_DOOR
 		    && player.dir == DIR_NONE) {
-			level_idx = (level_idx + 1) % countof(g_maps);
-			level_init(&level, g_maps[level_idx]);
+			level_idx = (level_idx + 1) % array_sz(maps);
+			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		}
 
 		if (key_pressed(gui, KB_R)) {
-			level_init(&level, g_maps[level_idx]);
+			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		}
 
@@ -336,6 +362,9 @@ int main(int argc, char *const argv[]) {
 		}
 	}
 
+err_maps_load:
+	array_destroy(maps);
+err_maps_create:
 	gui_destroy(gui);
 	return 0;
 }
