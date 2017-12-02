@@ -11,6 +11,7 @@
 enum tile_type {
 	TILE_BLANK,
 	TILE_WALL,
+	TILE_HALL,
 	TILE_PLAYER,
 	TILE_CLONE,
 	TILE_DOOR,
@@ -94,6 +95,7 @@ void level_init(struct level *level, const struct map *map)
 		for (u32 j = 0; j < map->dim.x; ++j) {
 			switch(map->tiles[i][j].type) {
 			case TILE_BLANK:
+			case TILE_HALL:
 			case TILE_WALL:
 			case TILE_DOOR:
 			break;
@@ -223,6 +225,8 @@ int main(int argc, char *const argv[]) {
 				const s32 x = offset.x + j * TILE_SIZE;
 				switch (level.map.tiles[i][j].type) {
 				case TILE_BLANK:
+				break;
+				case TILE_HALL:
 				case TILE_PLAYER:
 				case TILE_CLONE:
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
