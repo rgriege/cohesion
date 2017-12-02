@@ -6,6 +6,7 @@
 #define WALK_SPEED 40
 #define CLONE_CNT_MAX 32
 #define FPS_CAP 30
+#define ALLOW_ROTATION
 
 enum tile_type {
 	TILE_BLANK,
@@ -104,6 +105,12 @@ b32 tile_walkable(const struct map *map, s32 x, s32 y)
 	return    x >= 0 && x < map->dim.x
 	       && y >= 0 && y < map->dim.y
 	       && map->tiles[y][x].type != TILE_WALL;
+}
+
+static
+b32 tile_walkablev(const struct map *map, v2i tile)
+{
+	return tile_walkable(map, tile.x, tile.y);
 }
 
 static
@@ -225,6 +232,26 @@ int main(int argc, char *const argv[]) {
 			           && tile_walkable_for_player(&level.map, player.tile.x + 1, player.tile.y, &player)) {
 				player.dir = DIR_RIGHT;
 				++player.tile.x;
+#ifdef ALLOW_ROTATION
+			} else if (key_pressed(gui, KB_Q)) {
+				/* ccw */
+				b32 can_rotate = true;
+				for (u32 i = 0; i < player.num_clones; ++i)
+					if (!tile_walkablev(&level.map, v2i_add(player.tile, v2i_lperp(player.clones[i]))))
+						can_rotate = false;
+				if (can_rotate)
+					for (u32 i = 0; i < player.num_clones; ++i)
+						player.clones[i] = v2i_lperp(player.clones[i]);
+			} else if (key_pressed(gui, KB_E)) {
+				/* cw */
+				b32 can_rotate = true;
+				for (u32 i = 0; i < player.num_clones; ++i)
+					if (!tile_walkablev(&level.map, v2i_add(player.tile, v2i_rperp(player.clones[i]))))
+						can_rotate = false;
+				if (can_rotate)
+					for (u32 i = 0; i < player.num_clones; ++i)
+						player.clones[i] = v2i_rperp(player.clones[i]);
+#endif // ALLOW_ROTATION
 			}
 		break;
 		case DIR_UP:
@@ -297,7 +324,7 @@ int main(int argc, char *const argv[]) {
 			player_init(&player, &level);
 		}
 
-		quit = key_down(gui, KB_Q);
+		quit = key_down(gui, KB_ESCAPE);
 
 		gui_end_frame(gui);
 		{
