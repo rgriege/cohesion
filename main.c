@@ -268,18 +268,22 @@ int main(int argc, char *const argv[]) {
 				for (u32 i = 0; i < player.num_clones; ++i)
 					if (!tile_walkablev(&level.map, v2i_add(player.tile, v2i_lperp(player.clones[i]))))
 						can_rotate = false;
-				if (can_rotate)
+				if (can_rotate) {
 					for (u32 i = 0; i < player.num_clones; ++i)
 						player.clones[i] = v2i_lperp(player.clones[i]);
+					player_entered_tile(&level, player.tile, &player);
+				}
 			} else if (key_pressed(gui, KB_E)) {
 				/* cw */
 				b32 can_rotate = true;
 				for (u32 i = 0; i < player.num_clones; ++i)
 					if (!tile_walkablev(&level.map, v2i_add(player.tile, v2i_rperp(player.clones[i]))))
 						can_rotate = false;
-				if (can_rotate)
+				if (can_rotate) {
 					for (u32 i = 0; i < player.num_clones; ++i)
 						player.clones[i] = v2i_rperp(player.clones[i]);
+					player_entered_tile(&level, player.tile, &player);
+				}
 #endif // ALLOW_ROTATION
 			}
 		break;
