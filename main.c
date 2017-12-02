@@ -10,6 +10,8 @@
 enum tile_type {
 	TILE_BLANK,
 	TILE_WALL,
+	TILE_PLAYER,
+	TILE_CLONE,
 	TILE_DOOR,
 };
 
@@ -45,27 +47,47 @@ struct player {
 	u32 num_clones;
 };
 
-#define gi_tile_blank { .type = TILE_BLANK }
-#define gi_tile_wall  { .type = TILE_WALL }
-#define gi_tile_door  { .type = TILE_DOOR }
+#define gi_tile_blank   { .type = TILE_BLANK  }
+#define gi_tile_wall    { .type = TILE_WALL   }
+#define gi_tile_player  { .type = TILE_PLAYER }
+#define gi_tile_clone   { .type = TILE_CLONE  }
+#define gi_tile_door    { .type = TILE_DOOR   }
 
-const struct level g_level0 = {
-	.map = {
-		.dim = { .x = 7, .y = 5 },
-		.tiles = {
-			{ gi_tile_wall, gi_tile_wall,  gi_tile_wall,  gi_tile_wall,  gi_tile_wall,  gi_tile_wall,  gi_tile_wall },
-			{ gi_tile_wall, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_door,  gi_tile_wall },
-			{ gi_tile_wall, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_wall },
-			{ gi_tile_wall, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_blank, gi_tile_wall },
-			{ gi_tile_wall, gi_tile_wall,  gi_tile_wall,  gi_tile_wall,  gi_tile_wall,  gi_tile_wall,  gi_tile_wall },
-		},
+const struct map g_map0 = {
+	.dim = { .x = 7, .y = 5 },
+	.tiles = {
+		{ gi_tile_wall,  gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall },
+		{ gi_tile_wall,  gi_tile_player, gi_tile_blank,  gi_tile_blank,  gi_tile_blank,  gi_tile_door,   gi_tile_wall },
+		{ gi_tile_wall,  gi_tile_blank,  gi_tile_clone,  gi_tile_blank,  gi_tile_blank,  gi_tile_blank,  gi_tile_wall },
+		{ gi_tile_wall,  gi_tile_blank,  gi_tile_blank,  gi_tile_blank,  gi_tile_clone,  gi_tile_blank,  gi_tile_wall },
+		{ gi_tile_wall,  gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall,   gi_tile_wall },
 	},
-	.player_start = { .x = 1, .y = 1 },
-	.clones = { { .x = 2, .y = 2 }, { .x = 4, .y = 3 } },
-	.num_clones = 2,
 };
 
-const struct level *g_levels[] = { &g_level0 };
+const struct map *g_maps[] = { &g_map0 };
+
+static
+void level_init(struct level *level, const struct map *map)
+{
+	level->map = *map;
+	level->num_clones = 0;
+	for (u32 i = 0; i < map->dim.y; ++i) {
+		for (u32 j = 0; j < map->dim.x; ++j) {
+			switch(map->tiles[i][j].type) {
+			case TILE_BLANK:
+			case TILE_WALL:
+			case TILE_DOOR:
+			break;
+			case TILE_PLAYER:
+				level->player_start = (v2i){ .x = j, .y = i };
+			break;
+			case TILE_CLONE:
+				level->clones[level->num_clones++] = (v2i){ .x = j, .y = i };
+			break;
+			}
+		}
+	}
+}
 
 static
 void player_init(struct player *player, const struct level *level)
@@ -139,7 +161,7 @@ int main(int argc, char *const argv[]) {
 	gui_t *gui;
 	b32 quit = false;
 	u32 level_idx = 0;
-	struct level level = *g_levels[level_idx];
+	struct level level;
 	struct player player;
 	u32 frame_milli = 0;
 
@@ -149,6 +171,7 @@ int main(int argc, char *const argv[]) {
 	if (!gui)
 		return 1;
 
+	level_init(&level, g_maps[level_idx]);
 	player_init(&player, &level);
 
 	while (!quit && gui_begin_frame(gui)) {
@@ -167,6 +190,8 @@ int main(int argc, char *const argv[]) {
 				const s32 x = offset.x + j * TILE_SIZE;
 				switch (level.map.tiles[i][j].type) {
 				case TILE_BLANK:
+				case TILE_PLAYER:
+				case TILE_CLONE:
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
 				break;
 				case TILE_WALL:
@@ -262,13 +287,13 @@ int main(int argc, char *const argv[]) {
 
 		if (   level.map.tiles[player.tile.y][player.tile.x].type == TILE_DOOR
 		    && player.dir == DIR_NONE) {
-			level_idx = (level_idx + 1) % countof(g_levels);
-			level = *g_levels[level_idx];
+			level_idx = (level_idx + 1) % countof(g_maps);
+			level_init(&level, g_maps[level_idx]);
 			player_init(&player, &level);
 		}
 
 		if (key_pressed(gui, KB_R)) {
-			level = *g_levels[level_idx];
+			level_init(&level, g_maps[level_idx]);
 			player_init(&player, &level);
 		}
 
