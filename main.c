@@ -3,7 +3,7 @@
 
 #define MAP_DIM_MAX 32
 #define TILE_SIZE 20
-#define WALK_SPEED 40
+#define WALK_SPEED 80
 #define CLONE_CNT_MAX 32
 #define FPS_CAP 30
 #define ALLOW_ROTATION
