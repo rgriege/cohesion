@@ -352,7 +352,15 @@ int main(int argc, char *const argv[]) {
 			player_init(&player, &level);
 		}
 
-		if (key_pressed(gui, KB_R)) {
+		if (key_pressed(gui, KB_N)) {
+			level_idx = (level_idx + 1) % array_sz(maps);
+			level_init(&level, &maps[level_idx]);
+			player_init(&player, &level);
+		} else if (key_pressed(gui, KB_P)) {
+			level_idx = (level_idx + array_sz(maps) - 1) % array_sz(maps);
+			level_init(&level, &maps[level_idx]);
+			player_init(&player, &level);
+		} else if (key_pressed(gui, KB_R)) {
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		}
