@@ -65,17 +65,16 @@ b32 load_maps(struct map **maps)
 
 	for (u32 i = 0; i < n; ++i) {
 		struct map map;
-		char tiles[MAP_DIM_MAX * MAP_DIM_MAX];
+		char row[MAP_DIM_MAX + 1];
 		if (!vson_read_s32(fp, "width", &map.dim.x))
 			goto out;
 		if (!vson_read_s32(fp, "height", &map.dim.y))
 			goto out;
-		if (   !vson_read_str(fp, "tiles", tiles, MAP_DIM_MAX * MAP_DIM_MAX)
-		    || strlen(tiles) != map.dim.x * map.dim.y)
-			goto out;
-		for (s32 i = 0; i < map.dim.y; ++i)
+		for (s32 i = 0; i < map.dim.y; ++i) {
+			fgets(row, sizeof(row), fp);
 			for (s32 j = 0; j < map.dim.x; ++j)
-				map.tiles[i][j].type = tiles[i * map.dim.x + j] - '0';
+				map.tiles[map.dim.y - i - 1][j].type = row[j] - '0';
+		}
 		array_append(*maps, map);
 	}
 	success = true;
