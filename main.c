@@ -309,6 +309,7 @@ void background_generate(array(struct effect) *effects, v2i screen)
 int main(int argc, char *const argv[]) {
 	gui_t *gui;
 	b32 quit = false;
+	b32 music_enabled = true;
 	u32 level_idx = 0;
 	struct level level;
 	struct player player;
@@ -364,17 +365,9 @@ int main(int argc, char *const argv[]) {
 			background_generate(&bg_effects, screen);
 #endif // DEBUG
 
-		{
-			char buf[16];
-			snprintf(buf, 16, "Level %u", level_idx + 1);
-			gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2,
-			        offset.y + level.map.dim.y * TILE_SIZE + 10, 20,
-			        buf, g_white, GUI_ALIGN_CENTER);
-		}
-
 		for (u32 i = 0; i < array_sz(bg_effects); ) {
 			struct effect *fx = &bg_effects[i];
-      fx->t += (r32)frame_milli / fx->duration;
+			fx->t += (r32)frame_milli / fx->duration;
 			if (fx->t <= 1.f) {
 				const u32 sz = TILE_SIZE;
 				color_t fill = fx->color;
@@ -391,6 +384,34 @@ int main(int argc, char *const argv[]) {
 				fx->t = 0.f;
 			}
 		}
+
+		{
+			char buf[16];
+			snprintf(buf, 16, "Level %u", level_idx + 1);
+			gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2,
+			        offset.y + level.map.dim.y * TILE_SIZE + 10, 20,
+			        buf, g_white, GUI_ALIGN_CENTER);
+		}
+
+		gui_style_push(gui, btn, g_gui_style_invis.btn);
+		if (gui_btn_img(gui, screen.x - 60, screen.y - 30, 30, 30, "music.png", IMG_CENTERED) == BTN_PRESS) {
+			music_enabled = !music_enabled;
+			if (music_enabled)
+				music_play(&music);
+			else
+				music_stop_all();
+		}
+		if (!music_enabled) {
+			gui_line(gui, screen.x - 55, screen.y - 25, screen.x - 35, screen.y - 5,  2, g_red);
+			gui_line(gui, screen.x - 55, screen.y - 5,  screen.x - 35, screen.y - 25, 2, g_red);
+		}
+		if (gui_btn_img(gui, screen.x - 30, screen.y - 30, 30, 30, "sound.png", IMG_CENTERED) == BTN_PRESS)
+			sound_toggle();
+		if (!sound_enabled()) {
+			gui_line(gui, screen.x - 25, screen.y - 25, screen.x - 5, screen.y - 5,  2, g_red);
+			gui_line(gui, screen.x - 25, screen.y - 5,  screen.x - 5, screen.y - 25, 2, g_red);
+		}
+		gui_style_pop(gui);
 
 		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.tip, g_white, GUI_ALIGN_CENTER);
 
@@ -471,7 +492,7 @@ int main(int argc, char *const argv[]) {
 
 		for (u32 i = 0; i < array_sz(dissolve_effects); ) {
 			struct effect *fx = &dissolve_effects[i];
-      fx->t += (r32)frame_milli / fx->duration;
+			fx->t += (r32)frame_milli / fx->duration;
 			if (fx->t <= 1.f) {
 #ifndef SHOW_TRAVELLED
 				const u32 sz = (TILE_SIZE - 4) * (1.f - fx->t);

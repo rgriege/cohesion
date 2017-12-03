@@ -7,18 +7,29 @@ struct music {
 	Mix_Music *handle;
 };
 
-b32 audio_init();
-void audio_destroy();
-b32 sound_init(struct sound *sound, const char *file);
+b32 audio_init(void);
+void audio_destroy(void);
+
+b32  sound_init(struct sound *sound, const char *file);
 void sound_play(struct sound *sound);
 void sound_destroy(struct sound *sound);
-b32 music_init(struct music *music, const char *file);
+b32  sound_enabled(void);
+void sound_enable(void);
+void sound_disable(void);
+void sound_toggle(void);
+
+b32  music_init(struct music *music, const char *file);
 void music_play(struct music *music);
 void music_destroy(struct music *music);
+
+void music_stop_all(void);
 
 
 
 /* Implementation */
+
+static b32 g_sound_enabled = true;
+
 
 b32 audio_init()
 {
@@ -53,12 +64,33 @@ void sound_play(struct sound *sound)
 {
 	if (sound->channel >= 0)
 		Mix_HaltChannel(sound->channel);
-	sound->channel = Mix_PlayChannel(-1, sound->chunk, 0);
+	if (g_sound_enabled)
+		sound->channel = Mix_PlayChannel(-1, sound->chunk, 0);
 }
 
 void sound_destroy(struct sound *sound)
 {
 	Mix_FreeChunk(sound->chunk);
+}
+
+b32 sound_enabled(void)
+{
+	return g_sound_enabled;
+}
+
+void sound_enable(void)
+{
+	g_sound_enabled = true;
+}
+
+void sound_disable(void)
+{
+	g_sound_enabled = false;
+}
+
+void sound_toggle(void)
+{
+	g_sound_enabled = !g_sound_enabled;
 }
 
 b32 music_init(struct music *music, const char *file)
@@ -75,4 +107,9 @@ void music_play(struct music *music)
 void music_destroy(struct music *music)
 {
 	Mix_FreeMusic(music->handle);
+}
+
+void music_stop_all(void)
+{
+	Mix_FadeOutMusic(1000);
 }
