@@ -1,56 +1,99 @@
-maps: 8
-desc: learn movement (left/right)
+maps: 12
+desc: use the arrow keys to move
 width: 7
-height: 3
+height: 5
 1111111
-1322251
+1222221
+1211121
+1231521
 1111111
-desc: clone attachment intro
+desc: clones are clingy
 width: 7
 height: 4
 1111111
-1242221
+1142221
 1322251
 1111111
-desc: avoid clone attachment
+desc: if you get stuck, press r to reset
 width: 9
 height: 5
 111111111
+112221111
 122222421
-122222221
 132422251
 111111111
-desc: rotation intro
+desc: press q and e to rotate
 width: 7
 height: 4
 1111111
 1224211
 1322251
 1111111
-desc: corner rotation intro
+desc: clones cannot use the door
+width: 6
+height: 4
+001111
+111221
+132451
+111111
+desc: <corner rotation intro>
 width: 7
 height: 4
 0011100
 1114111
 1322251
 1111111
-desc: c
-width: 9
-height: 5
-001111110
-111411211
-132222221
-111142251
-000111111
-desc: d
+desc: no step on snek
 width: 8
-height: 5
+height: 6
+001111110
+111411210
+132222210
+111142510
+000112110
+000011100
+desc: no step on snak
+width: 8
+height: 6
 001111110
 111411510
 132222210
 111142210
-000111110
-desc: e
+000112110
+000011100
+desc: connect four
+width: 6
+height: 7
+111111
+132221
+124221
+122421
+122241
+111151
+000111
+desc: connect five
+width: 6
+height: 7
+111111
+132221
+124221
+122421
+142241
+111151
+000111
+desc: squares
+width: 9
+height: 9
+111111111
+122242221
+122424221
+124222421
+132222241
+124222421
+122424221
+122242251
+111111111
+desc: test
 width: 9
 height: 10
 111111111
