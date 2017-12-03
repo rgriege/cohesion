@@ -254,17 +254,39 @@ void disolve_effect_add(array(struct effect) *effects, v2i offset, v2i tile, col
 	array_append(*effects, fx);
 }
 
+static
+void background_generate(array(struct effect) *effects, v2i screen)
+{
+	array_clear(*effects);
+
+	for (u32 i = 0; i < 3; ++i) {
+		for (u32 j = 0; j < 3; ++j) {
+			const struct effect fx = {
+				.pos = {
+					.x = j * screen.x / 3 + rand() % screen.x / 3,
+					.y = i * screen.y / 3 + rand() % screen.y / 3
+				},
+				.color = g_tile_fills[rand() % 5 + 1],
+				.t = (random() % 100) / 100.f,
+				.duration = 2000 + rand() % 1000,
+			};
+			array_append(*effects, fx);
+		}
+	}
+}
+
 int main(int argc, char *const argv[]) {
 	gui_t *gui;
 	b32 quit = false;
 	u32 level_idx = 0;
 	struct level level;
 	struct player player;
-	u32 frame_milli = 0, milli_until_next_bg_effect = 0;
+	u32 frame_milli = 0;
 	struct sound sound_error, sound_success;
 	array(struct map) maps;
 	array(struct effect) bg_effects;
 	array(struct effect) disolve_effects;
+	v2i screen, offset;
 
 	log_add_std(LOG_STDOUT);
 
@@ -273,6 +295,7 @@ int main(int argc, char *const argv[]) {
 	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE, (MAP_DIM_MAX + 2) * TILE_SIZE + 40, "ldjam", WINDOW_CENTERED);
 	if (!gui)
 		return 1;
+	gui_dim(gui, &screen.x, &screen.y);
 
 	if (!audio_init())
 		goto err_audio;
@@ -291,25 +314,18 @@ int main(int argc, char *const argv[]) {
 	player_init(&player, &level);
 
 	bg_effects = array_create();
+	background_generate(&bg_effects, screen);
+
 	disolve_effects = array_create();
 
 	while (!quit && gui_begin_frame(gui)) {
-		v2i screen, offset;
 		gui_dim(gui, &screen.x, &screen.y);
 		offset = v2i_scale_inv(v2i_sub(screen, v2i_scale(level.map.dim, TILE_SIZE)), 2);
 
-		if (frame_milli >= milli_until_next_bg_effect) {
-			const struct effect fx = {
-				.pos = { .x = rand() % screen.x, .y = rand() % screen.y },
-				.color = g_tile_fills[rand() % 5 + 1],
-				.t = 0,
-				.duration = 2000,
-			};
-			array_append(bg_effects, fx);
-			milli_until_next_bg_effect = 500 + rand() % 1000;
-		} else {
-			milli_until_next_bg_effect -= frame_milli;
-		}
+#ifdef DEBUG
+		if (key_pressed(gui, KB_G))
+			background_generate(&bg_effects, screen);
+#endif // DEBUG
 
 		for (u32 i = 0; i < array_sz(bg_effects); ) {
 			struct effect *fx = &bg_effects[i];
@@ -317,20 +333,19 @@ int main(int argc, char *const argv[]) {
 			if (fx->t <= 1.f) {
 				const u32 sz = TILE_SIZE;
 				color_t fill = fx->color;
-				fill.a = 64 * fx->t;
+				fill.a = 48 * fx->t + 16;
 				gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
 				++i;
 			} else if (fx->t <= 2.f) {
 				const u32 sz = TILE_SIZE;
 				color_t fill = fx->color;
-				fill.a = 64 * (2.f - fx->t);
+				fill.a = 48 * (2.f - fx->t) + 16;
 				gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
 				++i;
 			} else {
-				array_remove_fast(bg_effects, i);
+				fx->t = 0.f;
 			}
 		}
-
 
 		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.desc, g_white, GUI_ALIGN_CENTER);
 
@@ -515,6 +530,7 @@ int main(int argc, char *const argv[]) {
 			level_idx = (level_idx + 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
+			background_generate(&bg_effects, screen);
 		}
 
 		if (key_pressed(gui, KB_N)) {
