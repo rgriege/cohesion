@@ -24,7 +24,7 @@ height: 4
 1322251
 1111111
 desc: force clone to move through door
-tip: CLONES cannot use the DOOR
+tip: blue CLONES cannot use the DOOR
 width: 5
 height: 5
 00111
