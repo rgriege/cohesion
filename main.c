@@ -643,7 +643,8 @@ int main(int argc, char *const argv[]) {
 			for (s32 i = 0; i < level.map.dim.y; ++i) {
 				for (s32 j = 0; j < level.map.dim.x; ++j) {
 					const v2i tile = { .x = j, .y = i };
-					dissolve_effect_add(&dissolve_effects, offset, tile, g_tile_fills[level.map.tiles[i][j].type], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+					if (level.map.tiles[i][j].type != TILE_BLANK)
+						dissolve_effect_add(&dissolve_effects, offset, tile, g_tile_fills[level.map.tiles[i][j].type], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
 				}
 			}
 			dissolve_effect_add(&dissolve_effects, offset, player.tile, g_tile_fills[TILE_PLAYER], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
