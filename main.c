@@ -672,7 +672,7 @@ int main(int argc, char *const argv[]) {
 			level_idx = (level_idx + array_sz(maps) - 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
-		} else if (key_pressed(gui, KB_R)) {
+		} else if (key_pressed(gui, KB_SPACE)) {
 			if (key_mod(gui, KBM_CTRL)) {
 				const struct map current_map = maps[level_idx];
 				array_clear(maps);
