@@ -269,7 +269,7 @@ void background_generate(array(struct effect) *effects, v2i screen)
 					.y = i * screen.y / 3 + rand() % screen.y / 3
 				},
 				.color = g_tile_fills[rand() % 5 + 1],
-				.t = (random() % 100) / 100.f,
+				.t = (rand() % 100) / 100.f,
 				.duration = 2000 + rand() % 1000,
 			};
 			array_append(*effects, fx);
