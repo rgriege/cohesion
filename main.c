@@ -119,6 +119,9 @@ void level_init(struct level *level, const struct map *map)
 			case TILE_CLONE:
 				level->clones[level->num_clones++] = (v2i){ .x = j, .y = i };
 				level->map.tiles[i][j].type = TILE_HALL;
+#ifdef SHOW_TRAVELLED
+				level->map.tiles[i][j].travelled = true;
+#endif
 			break;
 			}
 		}
