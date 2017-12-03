@@ -1,4 +1,4 @@
-maps: 16
+maps: 17
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -151,6 +151,14 @@ height: 9
 122424221
 122242251
 111111111
+desc: credits
+tip: Thanks for playing!
+width: 3
+height: 4
+111
+131
+151
+111
 desc: test
 tip: 
 width: 9

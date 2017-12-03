@@ -6,6 +6,7 @@
 #include <SDL_mixer.h>
 #include "audio.h"
 
+#define APP_NAME "Cohesion"
 #define MAP_DIM_MAX 16
 #define MAP_TIP_MAX 64
 #define TILE_SIZE 20
@@ -326,7 +327,7 @@ int main(int argc, char *const argv[]) {
 
 	srand(time(NULL));
 	
-	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE, (MAP_DIM_MAX + 2) * TILE_SIZE + 40, "ldjam", WINDOW_CENTERED);
+	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE, (MAP_DIM_MAX + 2) * TILE_SIZE + 40, APP_NAME, WINDOW_CENTERED);
 	if (!gui)
 		return 1;
 	gui_dim(gui, &screen.x, &screen.y);
@@ -386,11 +387,13 @@ int main(int argc, char *const argv[]) {
 		}
 
 		{
+			const s32 x = offset.x + level.map.dim.x * TILE_SIZE / 2;
+			const s32 y = offset.y + level.map.dim.y * TILE_SIZE;
 			char buf[16];
 			snprintf(buf, 16, "Level %u", level_idx + 1);
-			gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2,
-			        offset.y + level.map.dim.y * TILE_SIZE + 10, 20,
-			        buf, g_white, GUI_ALIGN_CENTER);
+			gui_txt(gui, x, y + 10, 20, buf, g_white, GUI_ALIGN_CENTER);
+			if (level_idx == 0)
+				gui_txt(gui, x, y + 60, 32, APP_NAME, g_white, GUI_ALIGN_CENTER);
 		}
 
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
