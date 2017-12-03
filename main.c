@@ -100,6 +100,9 @@ void level_init(struct level *level, const struct map *map)
 	level->num_clones = 0;
 	for (u32 i = 0; i < map->dim.y; ++i) {
 		for (u32 j = 0; j < map->dim.x; ++j) {
+#ifdef SHOW_TRAVELLED
+			level->map.tiles[i][j].travelled = false;
+#endif
 			switch(map->tiles[i][j].type) {
 			case TILE_BLANK:
 			case TILE_HALL:
@@ -108,14 +111,16 @@ void level_init(struct level *level, const struct map *map)
 			break;
 			case TILE_PLAYER:
 				level->player_start = (v2i){ .x = j, .y = i };
+				level->map.tiles[i][j].type = TILE_HALL;
+#ifdef SHOW_TRAVELLED
+				level->map.tiles[i][j].travelled = true;
+#endif
 			break;
 			case TILE_CLONE:
 				level->clones[level->num_clones++] = (v2i){ .x = j, .y = i };
+				level->map.tiles[i][j].type = TILE_HALL;
 			break;
 			}
-#ifdef SHOW_TRAVELLED
-			level->map.tiles[i][j].travelled = false;
-#endif
 		}
 	}
 }
@@ -130,27 +135,35 @@ void player_init(struct player *player, const struct level *level)
 }
 
 static
-b32 tile_walkable(const struct map *map, s32 x, s32 y)
+b32 tile_walkable(const struct level *level, s32 x, s32 y)
 {
-	return    x >= 0 && x < map->dim.x
-	       && y >= 0 && y < map->dim.y
-	       && map->tiles[y][x].type != TILE_WALL;
+	if (x < 0 || x >= level->map.dim.x)
+		return false;
+	if (y < 0 || y >= level->map.dim.y)
+		return false;
+	if (   level->map.tiles[y][x].type != TILE_HALL
+	    && level->map.tiles[y][x].type != TILE_DOOR)
+		return false;
+	for (u32 i = 0; i < level->num_clones; ++i)
+		if (level->clones[i].x == x && level->clones[i].y == y)
+			return false;
+	return true;
 }
 
 static
-b32 tile_walkablev(const struct map *map, v2i tile)
+b32 tile_walkablev(const struct level *level, v2i tile)
 {
-	return tile_walkable(map, tile.x, tile.y);
+	return tile_walkable(level, tile.x, tile.y);
 }
 
 static
-b32 tile_walkable_for_player(const struct map *map, s32 x, s32 y,
+b32 tile_walkable_for_player(const struct level *level, s32 x, s32 y,
                              const struct player *player)
 {
-	if (!tile_walkable(map, x, y))
+	if (!tile_walkable(level, x, y))
 		return false;
 	for (u32 i = 0; i < player->num_clones; ++i)
-		if (!tile_walkable(map, x + player->clones[i].x, y + player->clones[i].y))
+		if (!tile_walkable(level, x + player->clones[i].x, y + player->clones[i].y))
 			return false;
 	return true;
 }
@@ -247,14 +260,7 @@ int main(int argc, char *const argv[]) {
 				case TILE_BLANK:
 				break;
 				case TILE_HALL:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
-				break;
 				case TILE_PLAYER:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
-#ifdef SHOW_TRAVELLED
-					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 2 - 2, g_red, g_nocolor);
-#endif
-				break;
 				case TILE_CLONE:
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
 				break;
@@ -278,19 +284,19 @@ int main(int argc, char *const argv[]) {
 		switch (player.dir) {
 		case DIR_NONE:
 			if (   key_down(gui, KB_W)
-			    && tile_walkable_for_player(&level.map, player.tile.x, player.tile.y + 1, &player)) {
+			    && tile_walkable_for_player(&level, player.tile.x, player.tile.y + 1, &player)) {
 				player.dir = DIR_UP;
 				++player.tile.y;
 			} else if (   key_down(gui, KB_S)
-			           && tile_walkable_for_player(&level.map, player.tile.x, player.tile.y - 1, &player)) {
+			           && tile_walkable_for_player(&level, player.tile.x, player.tile.y - 1, &player)) {
 				player.dir = DIR_DOWN;
 				--player.tile.y;
 			} else if (   key_down(gui, KB_A)
-			           && tile_walkable_for_player(&level.map, player.tile.x - 1, player.tile.y, &player)) {
+			           && tile_walkable_for_player(&level, player.tile.x - 1, player.tile.y, &player)) {
 				player.dir = DIR_LEFT;
 				--player.tile.x;
 			} else if (   key_down(gui, KB_D)
-			           && tile_walkable_for_player(&level.map, player.tile.x + 1, player.tile.y, &player)) {
+			           && tile_walkable_for_player(&level, player.tile.x + 1, player.tile.y, &player)) {
 				player.dir = DIR_RIGHT;
 				++player.tile.x;
 #ifdef ALLOW_ROTATION
@@ -298,7 +304,7 @@ int main(int argc, char *const argv[]) {
 				/* ccw */
 				b32 can_rotate = true;
 				for (u32 i = 0; i < player.num_clones; ++i)
-					if (!tile_walkablev(&level.map, v2i_add(player.tile, v2i_lperp(player.clones[i]))))
+					if (!tile_walkablev(&level, v2i_add(player.tile, v2i_lperp(player.clones[i]))))
 						can_rotate = false;
 				if (can_rotate) {
 					for (u32 i = 0; i < player.num_clones; ++i)
@@ -309,7 +315,7 @@ int main(int argc, char *const argv[]) {
 				/* cw */
 				b32 can_rotate = true;
 				for (u32 i = 0; i < player.num_clones; ++i)
-					if (!tile_walkablev(&level.map, v2i_add(player.tile, v2i_rperp(player.clones[i]))))
+					if (!tile_walkablev(&level, v2i_add(player.tile, v2i_rperp(player.clones[i]))))
 						can_rotate = false;
 				if (can_rotate) {
 					for (u32 i = 0; i < player.num_clones; ++i)
@@ -324,7 +330,7 @@ int main(int argc, char *const argv[]) {
 			if ((s32)player.pos.y >= player.tile.y * TILE_SIZE) {
 				player_entered_tile(&level, player.tile, &player);
 				if (   key_down(gui, KB_W)
-				    && tile_walkable_for_player(&level.map, player.tile.x, player.tile.y + 1, &player)) {
+				    && tile_walkable_for_player(&level, player.tile.x, player.tile.y + 1, &player)) {
 					++player.tile.y;
 				} else {
 					player.pos.y = player.tile.y * TILE_SIZE;
@@ -337,7 +343,7 @@ int main(int argc, char *const argv[]) {
 			if ((s32)player.pos.y <= player.tile.y * TILE_SIZE) {
 				player_entered_tile(&level, player.tile, &player);
 				if (   key_down(gui, KB_S)
-				    && tile_walkable_for_player(&level.map, player.tile.x, player.tile.y - 1, &player)) {
+				    && tile_walkable_for_player(&level, player.tile.x, player.tile.y - 1, &player)) {
 					--player.tile.y;
 				} else {
 					player.pos.y = player.tile.y * TILE_SIZE;
@@ -350,7 +356,7 @@ int main(int argc, char *const argv[]) {
 			if ((s32)player.pos.x <= player.tile.x * TILE_SIZE) {
 				player_entered_tile(&level, player.tile, &player);
 				if (   key_down(gui, KB_A)
-				    && tile_walkable_for_player(&level.map, player.tile.x - 1, player.tile.y, &player)) {
+				    && tile_walkable_for_player(&level, player.tile.x - 1, player.tile.y, &player)) {
 					--player.tile.x;
 				} else {
 					player.pos.x = player.tile.x * TILE_SIZE;
@@ -363,7 +369,7 @@ int main(int argc, char *const argv[]) {
 			if ((s32)player.pos.x >= player.tile.x * TILE_SIZE) {
 				player_entered_tile(&level, player.tile, &player);
 				if (   key_down(gui, KB_D)
-				    && tile_walkable_for_player(&level.map, player.tile.x + 1, player.tile.y, &player)) {
+				    && tile_walkable_for_player(&level, player.tile.x + 1, player.tile.y, &player)) {
 					++player.tile.x;
 				} else {
 					player.pos.x = player.tile.x * TILE_SIZE;
