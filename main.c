@@ -7,7 +7,7 @@
 #include "audio.h"
 
 #define MAP_DIM_MAX 16
-#define MAP_DESC_MAX 64
+#define MAP_TIP_MAX 64
 #define TILE_SIZE 20
 #define WALK_SPEED 80
 #define CLONE_CNT_MAX 32
@@ -34,7 +34,7 @@ struct tile {
 };
 
 struct map {
-	char desc[MAP_DESC_MAX];
+	char tip[MAP_TIP_MAX];
 	v2i dim;
 	struct tile tiles[MAP_DIM_MAX][MAP_DIM_MAX];
 };
@@ -103,8 +103,11 @@ b32 load_maps(struct map **maps)
 
 	for (u32 i = 0; i < n; ++i) {
 		struct map map;
+		char desc[MAP_TIP_MAX];
 		char row[MAP_DIM_MAX + 1];
-		if (!vson_read_str(fp, "desc", map.desc, MAP_DESC_MAX))
+		if (!vson_read_str(fp, "desc", desc, MAP_TIP_MAX))
+			goto out;
+		if (!vson_read_str(fp, "tip", map.tip, MAP_TIP_MAX))
 			goto out;
 		if (!vson_read_s32(fp, "width", &map.dim.x))
 			goto out;
@@ -357,6 +360,14 @@ int main(int argc, char *const argv[]) {
 			background_generate(&bg_effects, screen);
 #endif // DEBUG
 
+		{
+			char buf[16];
+			snprintf(buf, 16, "Level %u", level_idx + 1);
+			gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2,
+			        offset.y + level.map.dim.y * TILE_SIZE + 10, 20,
+			        buf, g_white, GUI_ALIGN_CENTER);
+		}
+
 		for (u32 i = 0; i < array_sz(bg_effects); ) {
 			struct effect *fx = &bg_effects[i];
       fx->t += (r32)frame_milli / fx->duration;
@@ -377,7 +388,7 @@ int main(int argc, char *const argv[]) {
 			}
 		}
 
-		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.desc, g_white, GUI_ALIGN_CENTER);
+		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.tip, g_white, GUI_ALIGN_CENTER);
 
 		if (!level.complete) {
 			for (s32 i = 0; i < level.map.dim.y; ++i) {
