@@ -1,15 +1,18 @@
 maps: 8
+desc: learn movement (left/right)
 width: 7
 height: 3
 1111111
 1322251
 1111111
+desc: clone attachment intro
 width: 7
 height: 4
 1111111
 1242221
 1322251
 1111111
+desc: avoid clone attachment
 width: 9
 height: 5
 111111111
@@ -17,18 +20,21 @@ height: 5
 122222221
 132422251
 111111111
+desc: rotation intro
 width: 7
 height: 4
 1111111
 1224211
 1322251
 1111111
+desc: corner rotation intro
 width: 7
 height: 4
 0011100
 1114111
 1322251
 1111111
+desc: c
 width: 9
 height: 5
 001111110
@@ -36,6 +42,7 @@ height: 5
 132222221
 111142251
 000111111
+desc: d
 width: 8
 height: 5
 001111110
@@ -43,6 +50,7 @@ height: 5
 132222210
 111142210
 000111110
+desc: e
 width: 9
 height: 10
 111111111

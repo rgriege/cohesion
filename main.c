@@ -2,6 +2,7 @@
 #include "violet/all.h"
 
 #define MAP_DIM_MAX 32
+#define MAP_DESC_MAX 64
 #define TILE_SIZE 20
 #define WALK_SPEED 80
 #define CLONE_CNT_MAX 32
@@ -22,6 +23,7 @@ struct tile {
 };
 
 struct map {
+	char desc[MAP_DESC_MAX];
 	v2i dim;
 	struct tile tiles[MAP_DIM_MAX][MAP_DIM_MAX];
 };
@@ -66,6 +68,8 @@ b32 load_maps(struct map **maps)
 	for (u32 i = 0; i < n; ++i) {
 		struct map map;
 		char row[MAP_DIM_MAX + 1];
+		if (!vson_read_str(fp, "desc", map.desc, MAP_DESC_MAX))
+			goto out;
 		if (!vson_read_s32(fp, "width", &map.dim.x))
 			goto out;
 		if (!vson_read_s32(fp, "height", &map.dim.y))
@@ -217,6 +221,8 @@ int main(int argc, char *const argv[]) {
 			gui_dim(gui, &screen.x, &screen.y);
 			offset = v2i_scale_inv(v2i_sub(screen, map_dim), 2);
 		}
+
+		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.desc, g_white, GUI_ALIGN_CENTER);
 
 		for (u32 i = 0; i < level.map.dim.y; ++i) {
 			const s32 y = offset.y + i * TILE_SIZE;
