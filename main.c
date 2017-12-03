@@ -394,6 +394,7 @@ int main(int argc, char *const argv[]) {
 		}
 
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
+
 		if (gui_btn_img(gui, screen.x - 60, screen.y - 30, 30, 30, "music.png", IMG_CENTERED) == BTN_PRESS) {
 			music_enabled = !music_enabled;
 			if (music_enabled)
@@ -411,14 +412,15 @@ int main(int argc, char *const argv[]) {
 			gui_line(gui, screen.x - 25, screen.y - 25, screen.x - 5, screen.y - 5,  2, g_red);
 			gui_line(gui, screen.x - 25, screen.y - 5,  screen.x - 5, screen.y - 25, 2, g_red);
 		}
-		gui_style_pop(gui);
 
 		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.tip, g_white, GUI_ALIGN_CENTER);
 
-		if (!level.complete && gui_btn_txt(gui, screen.x - 60, 10, 50, 20, "reset") == BTN_PRESS) {
+		if (!level.complete && gui_btn_img(gui, offset.x + level.map.dim.x * TILE_SIZE / 2 - 15, offset.y - 50, 30, 30, "reset.png", IMG_CENTERED) == BTN_PRESS) {
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		}
+
+		gui_style_pop(gui);
 
 		if (!level.complete) {
 			for (s32 i = 0; i < level.map.dim.y; ++i) {
