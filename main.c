@@ -8,7 +8,9 @@
 #define CLONE_CNT_MAX 32
 #define FPS_CAP 30
 #define ALLOW_ROTATION
-#define SHOW_TRAVELLED
+// #define SHOW_TRAVELLED
+#define LEVEL_COMPLETE_EFFECT_DURATION_MILLI 1000
+#define ROTATION_EFFECT_DURATION_MILLI 250
 
 enum tile_type {
 	TILE_BLANK,
@@ -37,6 +39,7 @@ struct level {
 	v2i player_start;
 	v2i clones[CLONE_CNT_MAX];
 	u32 num_clones;
+	b32 complete;
 };
 
 enum dir {
@@ -53,6 +56,22 @@ struct player {
 	enum dir dir;
 	v2i clones[CLONE_CNT_MAX];
 	u32 num_clones;
+};
+
+struct disolve_effect {
+	v2i pos;
+	color_t color;
+	r32 t;
+	u32 duration;
+};
+
+const color_t g_tile_fills[] = {
+	g_nocolor,
+	g_black,
+	g_grey128,
+	g_orange,
+	g_lightblue,
+	g_yellow,
 };
 
 static
@@ -126,6 +145,7 @@ void level_init(struct level *level, const struct map *map)
 			}
 		}
 	}
+	level->complete = false;
 }
 
 static
@@ -218,6 +238,19 @@ clones:
 	}
 }
 
+static
+void disolve_effect_add(array(struct disolve_effect) *effects, v2i offset, v2i tile, color_t fill, u32 duration)
+{
+	static const v2i half_time = { .x = TILE_SIZE / 2, .y = TILE_SIZE / 2 };
+	const struct disolve_effect fx = {
+		.pos = v2i_add(v2i_add(offset, v2i_scale(tile, TILE_SIZE)), half_time),
+		.color = fill,
+		.t = 0.f,
+		.duration = duration,
+	};
+	array_append(*effects, fx);
+}
+
 int main(int argc, char *const argv[]) {
 	gui_t *gui;
 	b32 quit = false;
@@ -226,6 +259,7 @@ int main(int argc, char *const argv[]) {
 	struct player player;
 	u32 frame_milli = 0;
 	array(struct map) maps;
+	array(struct disolve_effect) disolve_effects;
 
 	log_add_std(LOG_STDOUT);
 	
@@ -234,14 +268,13 @@ int main(int argc, char *const argv[]) {
 		return 1;
 
 	maps = array_create();
-	if (!maps)
-		goto err_maps_create;
-
 	if (!load_maps(&maps) || array_empty(maps))
 		goto err_maps_load;
 
 	level_init(&level, &maps[level_idx]);
 	player_init(&player, &level);
+
+	disolve_effects = array_create();
 
 	while (!quit && gui_begin_frame(gui)) {
 
@@ -255,34 +288,54 @@ int main(int argc, char *const argv[]) {
 
 		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.desc, g_white, GUI_ALIGN_CENTER);
 
-		for (u32 i = 0; i < level.map.dim.y; ++i) {
-			const s32 y = offset.y + i * TILE_SIZE;
-			for (u32 j = 0; j < level.map.dim.x; ++j) {
-				const s32 x = offset.x + j * TILE_SIZE;
-				switch (level.map.tiles[i][j].type) {
-				case TILE_BLANK:
-				break;
-				case TILE_HALL:
-				case TILE_PLAYER:
-				case TILE_CLONE:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
-				break;
-				case TILE_WALL:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_black, g_grey128);
-				break;
-				case TILE_DOOR:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_yellow, g_black);
-				break;
-				}
+		if (!level.complete) {
+			for (u32 i = 0; i < level.map.dim.y; ++i) {
+				const s32 y = offset.y + i * TILE_SIZE;
+				for (u32 j = 0; j < level.map.dim.x; ++j) {
+					const s32 x = offset.x + j * TILE_SIZE;
+					const  enum tile_type type = level.map.tiles[i][j].type;
+					switch (type) {
+					case TILE_BLANK:
+					break;
+					case TILE_HALL:
+					case TILE_PLAYER:
+					case TILE_CLONE:
+						gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[TILE_HALL], g_tile_fills[TILE_WALL]);
+					break;
+					case TILE_WALL:
+						gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[TILE_WALL], g_tile_fills[TILE_HALL]);
+					break;
+					case TILE_DOOR:
+						gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[TILE_DOOR], g_tile_fills[TILE_WALL]);
+					break;
+					}
 #ifdef SHOW_TRAVELLED
-				if (level.map.tiles[i][j].travelled)
-					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 4, g_red, g_nocolor);
+					if (level.map.tiles[i][j].travelled)
+						gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 4, g_red, g_nocolor);
 #endif
+				}
 			}
 		}
 
-		for (u32 i = 0; i < level.num_clones; ++i)
-			render_player(gui, offset, v2i_scale(level.clones[i], TILE_SIZE), g_lightblue);
+		for (u32 i = 0; i < array_sz(disolve_effects); ) {
+			struct disolve_effect *fx = &disolve_effects[i];
+      fx->t += (r32)frame_milli / fx->duration;
+			if (fx->t <= 1.f) {
+#ifndef SHOW_TRAVELLED
+				const u32 sz = (TILE_SIZE - 4) * (1.f - fx->t);
+				color_t fill = fx->color;
+				fill.a = 255 * (1.f - fx->t);
+				gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
+#endif // SHOW_TRAVELLED
+				++i;
+			} else {
+				array_remove_fast(disolve_effects, i);
+			}
+		}
+
+		if (!level.complete)
+			for (u32 i = 0; i < level.num_clones; ++i)
+				render_player(gui, offset, v2i_scale(level.clones[i], TILE_SIZE), g_tile_fills[TILE_CLONE]);
 
 		switch (player.dir) {
 		case DIR_NONE:
@@ -310,8 +363,10 @@ int main(int argc, char *const argv[]) {
 					if (!tile_walkablev(&level, v2i_add(player.tile, v2i_lperp(player.clones[i]))))
 						can_rotate = false;
 				if (can_rotate) {
-					for (u32 i = 0; i < player.num_clones; ++i)
+					for (u32 i = 0; i < player.num_clones; ++i) {
+						disolve_effect_add(&disolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
 						player.clones[i] = v2i_lperp(player.clones[i]);
+					}
 					player_entered_tile(&level, player.tile, &player);
 				}
 			} else if (key_pressed(gui, KB_E)) {
@@ -321,8 +376,10 @@ int main(int argc, char *const argv[]) {
 					if (!tile_walkablev(&level, v2i_add(player.tile, v2i_rperp(player.clones[i]))))
 						can_rotate = false;
 				if (can_rotate) {
-					for (u32 i = 0; i < player.num_clones; ++i)
+					for (u32 i = 0; i < player.num_clones; ++i) {
+						disolve_effect_add(&disolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
 						player.clones[i] = v2i_rperp(player.clones[i]);
+					}
 					player_entered_tile(&level, player.tile, &player);
 				}
 #endif // ALLOW_ROTATION
@@ -382,12 +439,28 @@ int main(int argc, char *const argv[]) {
 		break;
 		}
 
-		render_player(gui, offset, v2f_to_v2i(player.pos), g_orange);
-		for (u32 i = 0; i < player.num_clones; ++i)
-			render_player(gui, offset, v2i_add(v2f_to_v2i(player.pos), v2i_scale(player.clones[i], TILE_SIZE)), g_lightblue);
+		if (!level.complete) {
+			render_player(gui, offset, v2f_to_v2i(player.pos), g_tile_fills[TILE_PLAYER]);
+			for (u32 i = 0; i < player.num_clones; ++i)
+				render_player(gui, offset, v2i_add(v2f_to_v2i(player.pos), v2i_scale(player.clones[i], TILE_SIZE)), g_tile_fills[TILE_CLONE]);
+		}
 
-		if (   level.map.tiles[player.tile.y][player.tile.x].type == TILE_DOOR
+		if (   !level.complete
+		    && level.map.tiles[player.tile.y][player.tile.x].type == TILE_DOOR
 		    && player.dir == DIR_NONE) {
+			for (u32 i = 0; i < level.map.dim.y; ++i) {
+				for (u32 j = 0; j < level.map.dim.x; ++j) {
+					const v2i tile = { .x = j, .y = i };
+					disolve_effect_add(&disolve_effects, offset, tile, g_tile_fills[level.map.tiles[i][j].type], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+				}
+			}
+			disolve_effect_add(&disolve_effects, offset, player.tile, g_tile_fills[TILE_PLAYER], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+			for (u32 i = 0; i < player.num_clones; ++i)
+				disolve_effect_add(&disolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+			level.complete = true;
+		}
+
+		if (level.complete && array_empty(disolve_effects)) {
 			level_idx = (level_idx + 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
@@ -426,9 +499,9 @@ int main(int argc, char *const argv[]) {
 		}
 	}
 
+	array_destroy(disolve_effects);
 err_maps_load:
 	array_destroy(maps);
-err_maps_create:
 	gui_destroy(gui);
 	return 0;
 }
