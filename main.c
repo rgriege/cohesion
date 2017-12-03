@@ -284,7 +284,7 @@ int main(int argc, char *const argv[]) {
 	struct level level;
 	struct player player;
 	u32 frame_milli = 0;
-	struct sound sound_error, sound_success;
+	struct sound sound_error, sound_swipe, sound_success;
 	array(struct map) maps;
 	array(struct effect) bg_effects;
 	array(struct effect) disolve_effects;
@@ -304,6 +304,8 @@ int main(int argc, char *const argv[]) {
 
 	if (!sound_init(&sound_error, "error.aiff"))
 		goto err_sound_error;
+
+	assert(sound_init(&sound_swipe, "swipe.aiff"));
 
 	if (!sound_init(&sound_success, "success.aiff"))
 		goto err_sound_success;
@@ -431,6 +433,7 @@ int main(int argc, char *const argv[]) {
 						player.clones[i] = v2i_lperp(player.clones[i]);
 					}
 					player_entered_tile(&level, player.tile, &player);
+					sound_play(&sound_swipe);
 				} else {
 					sound_play(&sound_error);
 				}
@@ -446,6 +449,7 @@ int main(int argc, char *const argv[]) {
 						player.clones[i] = v2i_rperp(player.clones[i]);
 					}
 					player_entered_tile(&level, player.tile, &player);
+					sound_play(&sound_swipe);
 				} else {
 					sound_play(&sound_error);
 				}
@@ -572,6 +576,7 @@ int main(int argc, char *const argv[]) {
 	array_destroy(bg_effects);
 err_maps_load:
 	array_destroy(maps);
+	sound_destroy(&sound_swipe);
 	sound_destroy(&sound_success);
 err_sound_success:
 	sound_destroy(&sound_error);
