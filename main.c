@@ -1,3 +1,5 @@
+#include <time.h>
+
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
 
@@ -69,12 +71,12 @@ struct effect {
 };
 
 const color_t g_tile_fills[] = {
-	g_nocolor,
-	g_black,
-	g_grey128,
-	g_orange,
-	g_lightblue,
-	g_yellow,
+	gi_nocolor,
+	gi_black,
+	gi_grey128,
+	gi_orange,
+	gi_lightblue,
+	gi_yellow,
 };
 
 static
@@ -120,8 +122,8 @@ void level_init(struct level *level, const struct map *map)
 {
 	level->map = *map;
 	level->num_clones = 0;
-	for (u32 i = 0; i < map->dim.y; ++i) {
-		for (u32 j = 0; j < map->dim.x; ++j) {
+	for (s32 i = 0; i < map->dim.y; ++i) {
+		for (s32 j = 0; j < map->dim.x; ++j) {
 #ifdef SHOW_TRAVELLED
 			level->map.tiles[i][j].travelled = false;
 #endif
@@ -350,9 +352,9 @@ int main(int argc, char *const argv[]) {
 		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.desc, g_white, GUI_ALIGN_CENTER);
 
 		if (!level.complete) {
-			for (u32 i = 0; i < level.map.dim.y; ++i) {
+			for (s32 i = 0; i < level.map.dim.y; ++i) {
 				const s32 y = offset.y + i * TILE_SIZE;
-				for (u32 j = 0; j < level.map.dim.x; ++j) {
+				for (s32 j = 0; j < level.map.dim.x; ++j) {
 					const s32 x = offset.x + j * TILE_SIZE;
 					const  enum tile_type type = level.map.tiles[i][j].type;
 					switch (type) {
@@ -513,8 +515,8 @@ int main(int argc, char *const argv[]) {
 		if (   !level.complete
 		    && level.map.tiles[player.tile.y][player.tile.x].type == TILE_DOOR
 		    && player.dir == DIR_NONE) {
-			for (u32 i = 0; i < level.map.dim.y; ++i) {
-				for (u32 j = 0; j < level.map.dim.x; ++j) {
+			for (s32 i = 0; i < level.map.dim.y; ++i) {
+				for (s32 j = 0; j < level.map.dim.x; ++j) {
 					const v2i tile = { .x = j, .y = i };
 					disolve_effect_add(&disolve_effects, offset, tile, g_tile_fills[level.map.tiles[i][j].type], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
 				}
