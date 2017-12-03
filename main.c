@@ -394,6 +394,11 @@ int main(int argc, char *const argv[]) {
 
 		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.tip, g_white, GUI_ALIGN_CENTER);
 
+		if (!level.complete && gui_btn_txt(gui, screen.x - 60, 10, 50, 20, "reset") == BTN_PRESS) {
+			level_init(&level, &maps[level_idx]);
+			player_init(&player, &level);
+		}
+
 		if (!level.complete) {
 			for (s32 i = 0; i < level.map.dim.y; ++i) {
 				const s32 y = offset.y + i * TILE_SIZE;
