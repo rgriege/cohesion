@@ -1,7 +1,7 @@
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
 
-#define MAP_DIM_MAX 32
+#define MAP_DIM_MAX 16
 #define MAP_DESC_MAX 64
 #define TILE_SIZE 20
 #define WALK_SPEED 80
@@ -229,7 +229,7 @@ int main(int argc, char *const argv[]) {
 
 	log_add_std(LOG_STDOUT);
 	
-	gui = gui_create(0, 0, 800, 600, "ldjam", WINDOW_CENTERED);
+	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE, (MAP_DIM_MAX + 2) * TILE_SIZE + 40, "ldjam", WINDOW_CENTERED);
 	if (!gui)
 		return 1;
 
