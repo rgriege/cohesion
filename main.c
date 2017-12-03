@@ -367,6 +367,14 @@ int main(int argc, char *const argv[]) {
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		} else if (key_pressed(gui, KB_R)) {
+			if (key_mod(gui, KBM_CTRL)) {
+				const struct map current_map = maps[level_idx];
+				array_clear(maps);
+				if (!load_maps(&maps) || array_empty(maps)) {
+					array_append(maps, current_map);
+					level_idx = 0;
+				}
+			}
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		}
