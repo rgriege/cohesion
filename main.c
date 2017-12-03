@@ -13,7 +13,6 @@
 #define WALK_SPEED 80
 #define CLONE_CNT_MAX 32
 #define FPS_CAP 30
-#define ALLOW_ROTATION
 // #define SHOW_TRAVELLED
 #define LEVEL_COMPLETE_EFFECT_DURATION_MILLI 1000
 #define ROTATION_EFFECT_DURATION_MILLI 250
@@ -499,12 +498,10 @@ int main(int argc, char *const argv[]) {
 			struct effect *fx = &dissolve_effects[i];
 			fx->t += (r32)frame_milli / fx->duration;
 			if (fx->t <= 1.f) {
-#ifndef SHOW_TRAVELLED
 				const u32 sz = (TILE_SIZE - 4) * (1.f - fx->t);
 				color_t fill = fx->color;
 				fill.a = 255 * (1.f - fx->t);
 				gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
-#endif // SHOW_TRAVELLED
 				++i;
 			} else {
 				array_remove_fast(dissolve_effects, i);
@@ -537,7 +534,6 @@ int main(int argc, char *const argv[]) {
 				player.dir = DIR_RIGHT;
 				++player.tile.x;
 				sound_play(&sound_slide);
-#ifdef ALLOW_ROTATION
 			} else if (key_pressed(gui, KB_Q)) {
 				/* ccw */
 				b32 can_rotate = true;
@@ -570,7 +566,6 @@ int main(int argc, char *const argv[]) {
 				} else {
 					sound_play(&sound_error);
 				}
-#endif // ALLOW_ROTATION
 			}
 		break;
 		case DIR_UP:
