@@ -244,7 +244,7 @@ clones:
 }
 
 static
-void disolve_effect_add(array(struct effect) *effects, v2i offset, v2i tile, color_t fill, u32 duration)
+void dissolve_effect_add(array(struct effect) *effects, v2i offset, v2i tile, color_t fill, u32 duration)
 {
 	static const v2i half_time = { .x = TILE_SIZE / 2, .y = TILE_SIZE / 2 };
 	const struct effect fx = {
@@ -288,7 +288,7 @@ int main(int argc, char *const argv[]) {
 	struct sound sound_error, sound_slide, sound_swipe, sound_success;
 	array(struct map) maps;
 	array(struct effect) bg_effects;
-	array(struct effect) disolve_effects;
+	array(struct effect) dissolve_effects;
 	v2i screen, offset;
 
 	log_add_std(LOG_STDOUT);
@@ -319,7 +319,7 @@ int main(int argc, char *const argv[]) {
 	bg_effects = array_create();
 	background_generate(&bg_effects, screen);
 
-	disolve_effects = array_create();
+	dissolve_effects = array_create();
 
 	music_play(&music);
 
@@ -383,8 +383,8 @@ int main(int argc, char *const argv[]) {
 			}
 		}
 
-		for (u32 i = 0; i < array_sz(disolve_effects); ) {
-			struct effect *fx = &disolve_effects[i];
+		for (u32 i = 0; i < array_sz(dissolve_effects); ) {
+			struct effect *fx = &dissolve_effects[i];
       fx->t += (r32)frame_milli / fx->duration;
 			if (fx->t <= 1.f) {
 #ifndef SHOW_TRAVELLED
@@ -395,7 +395,7 @@ int main(int argc, char *const argv[]) {
 #endif // SHOW_TRAVELLED
 				++i;
 			} else {
-				array_remove_fast(disolve_effects, i);
+				array_remove_fast(dissolve_effects, i);
 			}
 		}
 
@@ -434,7 +434,7 @@ int main(int argc, char *const argv[]) {
 						can_rotate = false;
 				if (can_rotate) {
 					for (u32 i = 0; i < player.num_clones; ++i) {
-						disolve_effect_add(&disolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
+						dissolve_effect_add(&dissolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
 						player.clones[i] = v2i_lperp(player.clones[i]);
 					}
 					player_entered_tile(&level, player.tile, &player);
@@ -450,7 +450,7 @@ int main(int argc, char *const argv[]) {
 						can_rotate = false;
 				if (can_rotate) {
 					for (u32 i = 0; i < player.num_clones; ++i) {
-						disolve_effect_add(&disolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
+						dissolve_effect_add(&dissolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
 						player.clones[i] = v2i_rperp(player.clones[i]);
 					}
 					player_entered_tile(&level, player.tile, &player);
@@ -531,17 +531,17 @@ int main(int argc, char *const argv[]) {
 			for (s32 i = 0; i < level.map.dim.y; ++i) {
 				for (s32 j = 0; j < level.map.dim.x; ++j) {
 					const v2i tile = { .x = j, .y = i };
-					disolve_effect_add(&disolve_effects, offset, tile, g_tile_fills[level.map.tiles[i][j].type], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+					dissolve_effect_add(&dissolve_effects, offset, tile, g_tile_fills[level.map.tiles[i][j].type], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
 				}
 			}
-			disolve_effect_add(&disolve_effects, offset, player.tile, g_tile_fills[TILE_PLAYER], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+			dissolve_effect_add(&dissolve_effects, offset, player.tile, g_tile_fills[TILE_PLAYER], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
 			for (u32 i = 0; i < player.num_clones; ++i)
-				disolve_effect_add(&disolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+				dissolve_effect_add(&dissolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
 			sound_play(&sound_success);
 			level.complete = true;
 		}
 
-		if (level.complete && array_empty(disolve_effects)) {
+		if (level.complete && array_empty(dissolve_effects)) {
 			level_idx = (level_idx + 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
@@ -581,7 +581,7 @@ int main(int argc, char *const argv[]) {
 		}
 	}
 
-	array_destroy(disolve_effects);
+	array_destroy(dissolve_effects);
 	array_destroy(bg_effects);
 err_maps_load:
 	array_destroy(maps);
