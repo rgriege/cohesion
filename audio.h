@@ -3,11 +3,18 @@ struct sound {
 	int channel;
 };
 
+struct music {
+	Mix_Music *handle;
+};
+
 b32 audio_init();
 void audio_destroy();
 b32 sound_init(struct sound *sound, const char *file);
 void sound_play(struct sound *sound);
 void sound_destroy(struct sound *sound);
+b32 music_init(struct music *music, const char *file);
+void music_play(struct music *music);
+void music_destroy(struct music *music);
 
 
 
@@ -24,6 +31,9 @@ b32 audio_init()
 		log_error("Unable to allocate channels: %s\n", SDL_GetError());
 		return false;
 	}
+
+	Mix_VolumeMusic(MIX_MAX_VOLUME / 8);
+
 	return true;
 }
 
@@ -49,4 +59,20 @@ void sound_play(struct sound *sound)
 void sound_destroy(struct sound *sound)
 {
 	Mix_FreeChunk(sound->chunk);
+}
+
+b32 music_init(struct music *music, const char *file)
+{
+	music->handle = Mix_LoadMUS(file);
+	return music->handle != NULL;
+}
+
+void music_play(struct music *music)
+{
+	Mix_FadeInMusic(music->handle, -1, 1000);
+}
+
+void music_destroy(struct music *music)
+{
+	Mix_FreeMusic(music->handle);
 }

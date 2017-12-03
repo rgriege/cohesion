@@ -1,3 +1,6 @@
 Roboto.ttf filter=lfs diff=lfs merge=lfs -text
 error.aiff filter=lfs diff=lfs merge=lfs -text
 success.aiff filter=lfs diff=lfs merge=lfs -text
+score.aiff filter=lfs diff=lfs merge=lfs -text
+slide.aiff filter=lfs diff=lfs merge=lfs -text
+swipe.aiff filter=lfs diff=lfs merge=lfs -text

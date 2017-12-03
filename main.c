@@ -284,7 +284,8 @@ int main(int argc, char *const argv[]) {
 	struct level level;
 	struct player player;
 	u32 frame_milli = 0;
-	struct sound sound_error, sound_swipe, sound_success;
+	struct music music;
+	struct sound sound_error, sound_slide, sound_swipe, sound_success;
 	array(struct map) maps;
 	array(struct effect) bg_effects;
 	array(struct effect) disolve_effects;
@@ -302,13 +303,11 @@ int main(int argc, char *const argv[]) {
 	if (!audio_init())
 		goto err_audio;
 
-	if (!sound_init(&sound_error, "error.aiff"))
-		goto err_sound_error;
-
-	assert(sound_init(&sound_swipe, "swipe.aiff"));
-
-	if (!sound_init(&sound_success, "success.aiff"))
-		goto err_sound_success;
+	check(music_init(&music, "score.aiff"));
+	check(sound_init(&sound_error, "error.aiff"));
+	check(sound_init(&sound_slide, "slide.aiff"));
+	check(sound_init(&sound_swipe, "swipe.aiff"));
+	check(sound_init(&sound_success, "success.aiff"));
 
 	maps = array_create();
 	if (!load_maps(&maps) || array_empty(maps))
@@ -321,6 +320,8 @@ int main(int argc, char *const argv[]) {
 	background_generate(&bg_effects, screen);
 
 	disolve_effects = array_create();
+
+	music_play(&music);
 
 	while (!quit && gui_begin_frame(gui)) {
 		gui_dim(gui, &screen.x, &screen.y);
@@ -408,18 +409,22 @@ int main(int argc, char *const argv[]) {
 			    && tile_walkable_for_player(&level, player.tile.x, player.tile.y + 1, &player)) {
 				player.dir = DIR_UP;
 				++player.tile.y;
+				sound_play(&sound_slide);
 			} else if (   key_down(gui, KB_S)
 			           && tile_walkable_for_player(&level, player.tile.x, player.tile.y - 1, &player)) {
 				player.dir = DIR_DOWN;
 				--player.tile.y;
+				sound_play(&sound_slide);
 			} else if (   key_down(gui, KB_A)
 			           && tile_walkable_for_player(&level, player.tile.x - 1, player.tile.y, &player)) {
 				player.dir = DIR_LEFT;
 				--player.tile.x;
+				sound_play(&sound_slide);
 			} else if (   key_down(gui, KB_D)
 			           && tile_walkable_for_player(&level, player.tile.x + 1, player.tile.y, &player)) {
 				player.dir = DIR_RIGHT;
 				++player.tile.x;
+				sound_play(&sound_slide);
 #ifdef ALLOW_ROTATION
 			} else if (key_pressed(gui, KB_Q)) {
 				/* ccw */
@@ -463,6 +468,7 @@ int main(int argc, char *const argv[]) {
 				if (   key_down(gui, KB_W)
 				    && tile_walkable_for_player(&level, player.tile.x, player.tile.y + 1, &player)) {
 					++player.tile.y;
+					sound_play(&sound_slide);
 				} else {
 					player.pos.y = player.tile.y * TILE_SIZE;
 					player.dir = DIR_NONE;
@@ -476,6 +482,7 @@ int main(int argc, char *const argv[]) {
 				if (   key_down(gui, KB_S)
 				    && tile_walkable_for_player(&level, player.tile.x, player.tile.y - 1, &player)) {
 					--player.tile.y;
+					sound_play(&sound_slide);
 				} else {
 					player.pos.y = player.tile.y * TILE_SIZE;
 					player.dir = DIR_NONE;
@@ -489,6 +496,7 @@ int main(int argc, char *const argv[]) {
 				if (   key_down(gui, KB_A)
 				    && tile_walkable_for_player(&level, player.tile.x - 1, player.tile.y, &player)) {
 					--player.tile.x;
+					sound_play(&sound_slide);
 				} else {
 					player.pos.x = player.tile.x * TILE_SIZE;
 					player.dir = DIR_NONE;
@@ -502,6 +510,7 @@ int main(int argc, char *const argv[]) {
 				if (   key_down(gui, KB_D)
 				    && tile_walkable_for_player(&level, player.tile.x + 1, player.tile.y, &player)) {
 					++player.tile.x;
+					sound_play(&sound_slide);
 				} else {
 					player.pos.x = player.tile.x * TILE_SIZE;
 					player.dir = DIR_NONE;
@@ -577,10 +586,10 @@ int main(int argc, char *const argv[]) {
 err_maps_load:
 	array_destroy(maps);
 	sound_destroy(&sound_swipe);
+	sound_destroy(&sound_slide);
 	sound_destroy(&sound_success);
-err_sound_success:
 	sound_destroy(&sound_error);
-err_sound_error:
+	music_destroy(&music);
 	audio_destroy();
 err_audio:
 	gui_destroy(gui);
