@@ -276,7 +276,7 @@ int main(int argc, char *const argv[]) {
 				}
 #ifdef SHOW_TRAVELLED
 				if (level.map.tiles[i][j].travelled)
-					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 2 - 2, g_red, g_nocolor);
+					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 4, g_red, g_nocolor);
 #endif
 			}
 		}
