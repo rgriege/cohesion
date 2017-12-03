@@ -8,6 +8,7 @@
 #define CLONE_CNT_MAX 32
 #define FPS_CAP 30
 #define ALLOW_ROTATION
+#define SHOW_TRAVELLED
 
 enum tile_type {
 	TILE_BLANK,
@@ -20,6 +21,9 @@ enum tile_type {
 
 struct tile {
 	enum tile_type type;
+#ifdef SHOW_TRAVELLED
+	b32 travelled;
+#endif
 };
 
 struct map {
@@ -109,6 +113,9 @@ void level_init(struct level *level, const struct map *map)
 				level->clones[level->num_clones++] = (v2i){ .x = j, .y = i };
 			break;
 			}
+#ifdef SHOW_TRAVELLED
+			level->map.tiles[i][j].travelled = false;
+#endif
 		}
 	}
 }
@@ -163,6 +170,14 @@ s32 manhattan_dist(v2i v0, v2i v1)
 static
 void player_entered_tile(struct level *level, v2i tile, struct player *player)
 {
+#ifdef SHOW_TRAVELLED
+	level->map.tiles[tile.y][tile.x].travelled = true;
+	for (u32 i = 0; i < player->num_clones; ++i) {
+		const v2i player_clone = v2i_add(tile, player->clones[i]);
+		level->map.tiles[player_clone.y][player_clone.x].travelled = true;
+	}
+#endif
+
 	for (u32 j = 0; j < level->num_clones; ) {
 		if (manhattan_dist(level->clones[j], tile) == 1) {
 			player->clones[player->num_clones++] = v2i_sub(level->clones[j], tile);
@@ -232,7 +247,14 @@ int main(int argc, char *const argv[]) {
 				case TILE_BLANK:
 				break;
 				case TILE_HALL:
+					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
+				break;
 				case TILE_PLAYER:
+					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
+#ifdef SHOW_TRAVELLED
+					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 2 - 2, g_red, g_nocolor);
+#endif
+				break;
 				case TILE_CLONE:
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grey128, g_black);
 				break;
@@ -243,6 +265,10 @@ int main(int argc, char *const argv[]) {
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_yellow, g_black);
 				break;
 				}
+#ifdef SHOW_TRAVELLED
+				if (level.map.tiles[i][j].travelled)
+					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 2 - 2, g_red, g_nocolor);
+#endif
 			}
 		}
 
