@@ -70,6 +70,14 @@ struct effect {
 	u32 duration;
 };
 
+struct effect2 {
+	v2f pos;
+	color_t color;
+	r32 t;
+	u32 duration;
+	r32 rotation_start, rotation_rate;
+};
+
 const color_t g_tile_fills[] = {
 	gi_nocolor,
 	gi_black,
@@ -244,6 +252,20 @@ clones:
 }
 
 static
+void door_effect_add(array(struct effect2) *door_effects, s32 x, s32 y)
+{
+	const struct effect2 fx = {
+		.pos = { .x = x + rand() % TILE_SIZE, .y = y + rand() % TILE_SIZE },
+		.color = g_tile_fills[TILE_DOOR],
+		.t = 0.f,
+		.duration = 1000 + rand() % 500,
+		.rotation_start = rand() % 12, /* approximate 2 * PI */
+		.rotation_rate = (rand() % 20) / 3.f - 3.f,
+	};
+	array_append(*door_effects, fx);
+}
+
+static
 void dissolve_effect_add(array(struct effect) *effects, v2i offset, v2i tile, color_t fill, u32 duration)
 {
 	static const v2i half_time = { .x = TILE_SIZE / 2, .y = TILE_SIZE / 2 };
@@ -283,12 +305,13 @@ int main(int argc, char *const argv[]) {
 	u32 level_idx = 0;
 	struct level level;
 	struct player player;
-	u32 frame_milli = 0;
+	u32 frame_milli = 0, time_until_next_door_fx = 0;
 	struct music music;
 	struct sound sound_error, sound_slide, sound_swipe, sound_success;
 	array(struct map) maps;
 	array(struct effect) bg_effects;
 	array(struct effect) dissolve_effects;
+	array(struct effect2) door_effects;
 	v2i screen, offset;
 
 	log_add_std(LOG_STDOUT);
@@ -320,6 +343,8 @@ int main(int argc, char *const argv[]) {
 	background_generate(&bg_effects, screen);
 
 	dissolve_effects = array_create();
+
+	door_effects = array_create();
 
 	music_play(&music);
 
@@ -373,6 +398,12 @@ int main(int argc, char *const argv[]) {
 					break;
 					case TILE_DOOR:
 						gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[TILE_DOOR], g_tile_fills[TILE_WALL]);
+						if (frame_milli >= time_until_next_door_fx) {
+							door_effect_add(&door_effects, x, y);
+							time_until_next_door_fx = 100 + rand() % 100;
+						} else {
+							time_until_next_door_fx -= frame_milli;
+						}
 					break;
 					}
 #ifdef SHOW_TRAVELLED
@@ -380,6 +411,41 @@ int main(int argc, char *const argv[]) {
 						gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 4, g_red, g_nocolor);
 #endif
 				}
+			}
+		}
+
+		for (u32 i = 0; i < array_sz(door_effects); ) {
+			struct effect2 *fx = &door_effects[i];
+			const r32 delta = (r32)frame_milli / fx->duration;
+			fx->t += delta;
+			if (fx->t <= 1.f) {
+				const r32 sz = TILE_SIZE / 2 * fx->t;
+				const m3f m = m3f_init_rot(fx->rotation_start + fx->rotation_rate * fx->t);
+				v2f square[4] = {
+					v2f_add(m3f_mul_v2(m, (v2f){ .x =  sz / 2, .y =  sz / 2 }), fx->pos),
+					v2f_add(m3f_mul_v2(m, (v2f){ .x = -sz / 2, .y =  sz / 2 }), fx->pos),
+					v2f_add(m3f_mul_v2(m, (v2f){ .x = -sz / 2, .y = -sz / 2 }), fx->pos),
+					v2f_add(m3f_mul_v2(m, (v2f){ .x =  sz / 2, .y = -sz / 2 }), fx->pos),
+				};
+				color_t fill = fx->color;
+				fill.a = 48 * fx->t + 48;
+				gui_polyf(gui, square, 4, fill, g_nocolor);
+				++i;
+			} else if (fx->t <= 2.f) {
+				const r32 sz = TILE_SIZE / 2 * (2.f - fx->t);
+				const m3f m = m3f_init_rot(fx->rotation_start + fx->rotation_rate * fx->t);
+				v2f square[4] = {
+					v2f_add(m3f_mul_v2(m, (v2f){ .x =  sz / 2, .y =  sz / 2 }), fx->pos),
+					v2f_add(m3f_mul_v2(m, (v2f){ .x = -sz / 2, .y =  sz / 2 }), fx->pos),
+					v2f_add(m3f_mul_v2(m, (v2f){ .x = -sz / 2, .y = -sz / 2 }), fx->pos),
+					v2f_add(m3f_mul_v2(m, (v2f){ .x =  sz / 2, .y = -sz / 2 }), fx->pos),
+				};
+				color_t fill = fx->color;
+				fill.a = 48 * (2.f - fx->t) + 48;
+				gui_polyf(gui, square, 4, fill, g_nocolor);
+				++i;
+			} else {
+				array_remove_fast(door_effects, i);
 			}
 		}
 
@@ -539,6 +605,9 @@ int main(int argc, char *const argv[]) {
 				dissolve_effect_add(&dissolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
 			sound_play(&sound_success);
 			level.complete = true;
+			array_foreach(door_effects, struct effect2, fx)
+				if (fx->t < 1.f)
+					fx->t = 2.f - fx->t;
 		}
 
 		if (level.complete && array_empty(dissolve_effects)) {
@@ -581,6 +650,7 @@ int main(int argc, char *const argv[]) {
 		}
 	}
 
+	array_destroy(door_effects);
 	array_destroy(dissolve_effects);
 	array_destroy(bg_effects);
 err_maps_load:
