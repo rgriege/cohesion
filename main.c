@@ -1,6 +1,9 @@
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
 
+#include <SDL_mixer.h>
+#include "audio.h"
+
 #define MAP_DIM_MAX 16
 #define MAP_DESC_MAX 64
 #define TILE_SIZE 20
@@ -258,6 +261,7 @@ int main(int argc, char *const argv[]) {
 	struct level level;
 	struct player player;
 	u32 frame_milli = 0;
+	struct sound sound_error, sound_success;
 	array(struct map) maps;
 	array(struct disolve_effect) disolve_effects;
 
@@ -266,6 +270,15 @@ int main(int argc, char *const argv[]) {
 	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE, (MAP_DIM_MAX + 2) * TILE_SIZE + 40, "ldjam", WINDOW_CENTERED);
 	if (!gui)
 		return 1;
+
+	if (!audio_init())
+		goto err_audio;
+
+	if (!sound_init(&sound_error, "error.aiff"))
+		goto err_sound_error;
+
+	if (!sound_init(&sound_success, "success.aiff"))
+		goto err_sound_success;
 
 	maps = array_create();
 	if (!load_maps(&maps) || array_empty(maps))
@@ -368,6 +381,8 @@ int main(int argc, char *const argv[]) {
 						player.clones[i] = v2i_lperp(player.clones[i]);
 					}
 					player_entered_tile(&level, player.tile, &player);
+				} else {
+					sound_play(&sound_error);
 				}
 			} else if (key_pressed(gui, KB_E)) {
 				/* cw */
@@ -381,6 +396,8 @@ int main(int argc, char *const argv[]) {
 						player.clones[i] = v2i_rperp(player.clones[i]);
 					}
 					player_entered_tile(&level, player.tile, &player);
+				} else {
+					sound_play(&sound_error);
 				}
 #endif // ALLOW_ROTATION
 			}
@@ -457,6 +474,7 @@ int main(int argc, char *const argv[]) {
 			disolve_effect_add(&disolve_effects, offset, player.tile, g_tile_fills[TILE_PLAYER], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
 			for (u32 i = 0; i < player.num_clones; ++i)
 				disolve_effect_add(&disolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+			sound_play(&sound_success);
 			level.complete = true;
 		}
 
@@ -502,6 +520,12 @@ int main(int argc, char *const argv[]) {
 	array_destroy(disolve_effects);
 err_maps_load:
 	array_destroy(maps);
+	sound_destroy(&sound_success);
+err_sound_success:
+	sound_destroy(&sound_error);
+err_sound_error:
+	audio_destroy();
+err_audio:
 	gui_destroy(gui);
 	return 0;
 }
