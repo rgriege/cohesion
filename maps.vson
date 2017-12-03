@@ -1,5 +1,6 @@
-maps: 12
-desc: use WASD to move
+maps: 16
+desc: movement intro
+tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
 height: 5
 1111111
@@ -7,14 +8,32 @@ height: 5
 1211121
 1231521
 1111111
-desc: clones are clingy
+desc: first clone
+tip: blue CLONES will latch on to you
+width: 7
+height: 3
+1111111
+1432251
+1111111
+desc: second clone
+tip: 
 width: 7
 height: 4
-0111111
-1142221
+0011111
+1114221
 1322251
 1111111
-desc: if you get stuck, press r to reset
+desc: force clone to move through door
+tip: CLONES cannot use the DOOR
+width: 5
+height: 5
+00111
+01121
+11451
+13221
+11111
+desc: avoid the clones
+tip: if you get stuck, press r to reset
 width: 9
 height: 5
 011111000
@@ -22,28 +41,63 @@ height: 5
 122222421
 132422251
 111111111
-desc: press q and e to rotate
+desc: ccw
+tip: press q to rotate counter-clockwise
 width: 7
 height: 4
 1111110
 1224211
 1322251
 1111111
-desc: clones cannot use the door
+desc: cw
+tip: press e to rotate clockwise
+width: 7
+height: 4
+0111111
+1124221
+1522231
+1111111
+desc: clones cannot use the door w/ rotation
+tip: 
 width: 6
 height: 4
 001111
 111221
 132451
 111111
-desc: <corner rotation intro>
+desc: corner rotation intro
+tip: 
 width: 7
 height: 4
 0011100
 1114111
 1322251
 1111111
+desc: more corner rotation
+tip: 
+width: 10
+height: 8
+0011101110
+1114111411
+1322222221
+1111111221
+0112111221
+1122222221
+1252222411
+1111111110
+desc: more corner rotation
+tip: 
+width: 11
+height: 7
+00111011100
+11141114100
+13222222111
+11111122221
+00000112221
+00000011251
+00000001111
 desc: no step on snek
+tip: 
 width: 8
 height: 6
 001111110
@@ -53,6 +107,7 @@ height: 6
 000112110
 000011100
 desc: no step on snak
+tip: 
 width: 8
 height: 6
 001111110
@@ -62,6 +117,7 @@ height: 6
 000112110
 000011100
 desc: connect four
+tip: 
 width: 6
 height: 7
 111111
@@ -72,6 +128,7 @@ height: 7
 111151
 000111
 desc: connect five
+tip: 
 width: 6
 height: 7
 111111
@@ -82,6 +139,7 @@ height: 7
 111151
 000111
 desc: squares
+tip: 
 width: 9
 height: 9
 111111111
@@ -94,6 +152,7 @@ height: 9
 122242251
 111111111
 desc: test
+tip: 
 width: 9
 height: 10
 111111111
