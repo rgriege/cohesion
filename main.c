@@ -165,12 +165,16 @@ void level_init(struct level *level, const struct map *map)
 }
 
 static
-void player_init(struct player *player, const struct level *level)
+void player_entered_tile(struct level *level, v2i tile, struct player *player);
+
+static
+void player_init(struct player *player, struct level *level)
 {
 	player->tile = level->player_start;
 	player->pos = v2i_to_v2f(v2i_scale(player->tile, TILE_SIZE));
 	player->dir = DIR_NONE;
 	player->num_clones = 0;
+	player_entered_tile(level, player->tile, player);
 }
 
 static
