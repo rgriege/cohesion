@@ -61,7 +61,7 @@ struct player {
 	u32 num_clones;
 };
 
-struct disolve_effect {
+struct effect {
 	v2i pos;
 	color_t color;
 	r32 t;
@@ -242,10 +242,10 @@ clones:
 }
 
 static
-void disolve_effect_add(array(struct disolve_effect) *effects, v2i offset, v2i tile, color_t fill, u32 duration)
+void disolve_effect_add(array(struct effect) *effects, v2i offset, v2i tile, color_t fill, u32 duration)
 {
 	static const v2i half_time = { .x = TILE_SIZE / 2, .y = TILE_SIZE / 2 };
-	const struct disolve_effect fx = {
+	const struct effect fx = {
 		.pos = v2i_add(v2i_add(offset, v2i_scale(tile, TILE_SIZE)), half_time),
 		.color = fill,
 		.t = 0.f,
@@ -260,12 +260,15 @@ int main(int argc, char *const argv[]) {
 	u32 level_idx = 0;
 	struct level level;
 	struct player player;
-	u32 frame_milli = 0;
+	u32 frame_milli = 0, milli_until_next_bg_effect = 0;
 	struct sound sound_error, sound_success;
 	array(struct map) maps;
-	array(struct disolve_effect) disolve_effects;
+	array(struct effect) bg_effects;
+	array(struct effect) disolve_effects;
 
 	log_add_std(LOG_STDOUT);
+
+	srand(time(NULL));
 	
 	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE, (MAP_DIM_MAX + 2) * TILE_SIZE + 40, "ldjam", WINDOW_CENTERED);
 	if (!gui)
@@ -287,17 +290,47 @@ int main(int argc, char *const argv[]) {
 	level_init(&level, &maps[level_idx]);
 	player_init(&player, &level);
 
+	bg_effects = array_create();
 	disolve_effects = array_create();
 
 	while (!quit && gui_begin_frame(gui)) {
+		v2i screen, offset;
+		gui_dim(gui, &screen.x, &screen.y);
+		offset = v2i_scale_inv(v2i_sub(screen, v2i_scale(level.map.dim, TILE_SIZE)), 2);
 
-		v2i offset;
-		{
-			const v2i map_dim = v2i_scale(level.map.dim, TILE_SIZE);
-			v2i screen;
-			gui_dim(gui, &screen.x, &screen.y);
-			offset = v2i_scale_inv(v2i_sub(screen, map_dim), 2);
+		if (frame_milli >= milli_until_next_bg_effect) {
+			const struct effect fx = {
+				.pos = { .x = rand() % screen.x, .y = rand() % screen.y },
+				.color = g_tile_fills[rand() % 5 + 1],
+				.t = 0,
+				.duration = 2000,
+			};
+			array_append(bg_effects, fx);
+			milli_until_next_bg_effect = 500 + rand() % 1000;
+		} else {
+			milli_until_next_bg_effect -= frame_milli;
 		}
+
+		for (u32 i = 0; i < array_sz(bg_effects); ) {
+			struct effect *fx = &bg_effects[i];
+      fx->t += (r32)frame_milli / fx->duration;
+			if (fx->t <= 1.f) {
+				const u32 sz = TILE_SIZE;
+				color_t fill = fx->color;
+				fill.a = 64 * fx->t;
+				gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
+				++i;
+			} else if (fx->t <= 2.f) {
+				const u32 sz = TILE_SIZE;
+				color_t fill = fx->color;
+				fill.a = 64 * (2.f - fx->t);
+				gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
+				++i;
+			} else {
+				array_remove_fast(bg_effects, i);
+			}
+		}
+
 
 		gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.desc, g_white, GUI_ALIGN_CENTER);
 
@@ -331,7 +364,7 @@ int main(int argc, char *const argv[]) {
 		}
 
 		for (u32 i = 0; i < array_sz(disolve_effects); ) {
-			struct disolve_effect *fx = &disolve_effects[i];
+			struct effect *fx = &disolve_effects[i];
       fx->t += (r32)frame_milli / fx->duration;
 			if (fx->t <= 1.f) {
 #ifndef SHOW_TRAVELLED
@@ -518,6 +551,7 @@ int main(int argc, char *const argv[]) {
 	}
 
 	array_destroy(disolve_effects);
+	array_destroy(bg_effects);
 err_maps_load:
 	array_destroy(maps);
 	sound_destroy(&sound_success);
