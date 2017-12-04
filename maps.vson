@@ -1,4 +1,4 @@
-maps: 17
+maps: 25
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -24,7 +24,7 @@ height: 4
 1322251
 1111111
 desc: force clone to move through door
-tip: blue CLONES cannot use the DOOR
+tip: blue CLONES cannot use the yellow DOOR
 width: 5
 height: 5
 00111
@@ -65,7 +65,7 @@ height: 4
 111221
 132451
 111111
-desc: corner rotation intro
+desc: corner rotation 1 (intro)
 tip: 
 width: 7
 height: 4
@@ -73,7 +73,7 @@ height: 4
 1114111
 1322251
 1111111
-desc: more corner rotation
+desc: corner rotation 2 (T-shape)
 tip: 
 width: 10
 height: 8
@@ -85,7 +85,7 @@ height: 8
 1122222221
 1252222411
 1111111110
-desc: more corner rotation
+desc: corner rotation 3 (2-L-shape, P-C-C)
 tip: 
 width: 11
 height: 7
@@ -96,7 +96,7 @@ height: 7
 00000112221
 00000011251
 00000001111
-desc: no step on snek
+desc: corner rotation 4 (2-L-shape, tighter)
 tip: 
 width: 8
 height: 6
@@ -106,7 +106,7 @@ height: 6
 111142510
 000112110
 000011100
-desc: no step on snak
+desc: corner rotation 5 (2-L-shape, P-C-C)
 tip: 
 width: 8
 height: 6
@@ -116,7 +116,7 @@ height: 6
 111142210
 000112110
 000011100
-desc: connect four
+desc: connect four 1
 tip: 
 width: 6
 height: 7
@@ -127,7 +127,18 @@ height: 7
 122241
 111151
 000111
-desc: connect five
+desc: connect four 2 (shrunk)
+tip: 
+width: 6
+height: 7
+111000
+131111
+124221
+122421
+122241
+111151
+000111
+desc: connect four 3 (extra)
 tip: 
 width: 6
 height: 7
@@ -138,7 +149,40 @@ height: 7
 142241
 111151
 000111
-desc: squares
+desc: clump 1
+tip: 
+width: 9
+height: 6
+111111111
+132422221
+124222251
+142421111
+124221000
+111111000
+desc: clump 2
+tip: 
+width: 9
+height: 6
+111111111
+132422221
+124222251
+142422111
+124241100
+111111000
+desc: clump 3
+tip: 
+width: 9
+height: 9
+111111111
+122242221
+122422221
+124242221
+132422251
+124242221
+122422221
+122242221
+111111111
+desc: diamond
 tip: 
 width: 9
 height: 9
@@ -151,6 +195,48 @@ height: 9
 122424221
 122242251
 111111111
+desc: stacks
+tip: 
+width: 9
+height: 6
+111111110
+122224411
+122224451
+122222251
+132224411
+111111110
+desc: false fork 1 (hook)
+tip: 
+width: 12
+height: 7
+011111110000
+112221211100
+122224222111
+123221422251
+122224222111
+112221211100
+011111110000
+desc: false fork 2
+tip: 
+width: 9
+height: 6
+111111110
+122224211
+122224251
+122221221
+132224211
+111111110
+desc: false fork 3 (lanes)
+tip: 
+width: 8
+height: 7
+11111111
+12221221
+12224241
+12221251
+13224241
+12221221
+11111111
 desc: credits
 tip: Thanks for playing!
 width: 3
