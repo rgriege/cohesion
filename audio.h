@@ -95,13 +95,24 @@ void sound_toggle(void)
 
 b32 music_init(struct music *music, const char *file)
 {
+#ifdef __EMSCRIPTEN__
+	/* Sweet Mary Mother of Jesus why do I have to do it this way?!?! */
+	SDL_RWops *ops = SDL_RWFromFile(file, "rb");
+	music->handle = Mix_LoadMUS_RW(ops, 1);
+#else
 	music->handle = Mix_LoadMUS(file);
+#endif
 	return music->handle != NULL;
 }
 
 void music_play(struct music *music)
 {
+#ifdef __EMSCRIPTEN__
+	/* Mix_FadeInMusic is an SDL2 feature */
+	Mix_PlayMusic(music->handle, -1);
+#else
 	Mix_FadeInMusic(music->handle, -1, 1000);
+#endif
 }
 
 void music_destroy(struct music *music)
