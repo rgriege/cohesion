@@ -15,15 +15,16 @@ cohesion: main.c audio.h $(RESOURCES_DESKTOP)
 %.mp3: %.aiff
 	sox $< $@
 
-cohesion.html: main.c audio.h $(RESOURCES_WEB)
-	emcc main.c -O2 -I. -I$(INC)/SDL2/ -DFMATH_NO_SSE -DDMATH_NO_SSE -s WASM=1 -o cohesion.html -s USE_SDL=2 $(foreach R, $(RESOURCES_WEB), --preload-file $(R))
+index.html: main.c audio.h $(RESOURCES_WEB)
+	emcc main.c -O2 -I. -I$(INC)/SDL2/ -DFMATH_NO_SSE -DDMATH_NO_SSE -s WASM=1 --shell-file html_template/shell_minimal.html -o cohesion.html -s USE_SDL=2 $(foreach R, $(RESOURCES_WEB), --preload-file $(R))
+	mv cohesion.html index.html
 
-cohesion.7z: cohesion.html
-	7z a cohesion.7z cohesion.html cohesion.js cohesion.wasm cohesion.data
+cohesion.7z: index.html
+	7z a cohesion.7z index.html cohesion.js cohesion.wasm cohesion.data
 
 .PHONY: clean
 clean:
 	rm -f cohesion
-	rm -f cohesion.html cohesion.js cohesion.wasm cohesion.data
+	rm -f index.html cohesion.js cohesion.wasm cohesion.data
 	rm -f cohesion.7z
 	rm -f $(SOUNDS_WEB)
