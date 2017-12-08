@@ -7,7 +7,7 @@ struct music {
 	Mix_Music *handle;
 };
 
-b32 audio_init(void);
+b32  audio_init(void);
 void audio_destroy(void);
 
 b32  sound_init(struct sound *sound, const char *file);

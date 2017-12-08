@@ -3,8 +3,13 @@
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
 
+#define AUDIO_ENABLED
+#ifdef AUDIO_ENABLED
 #include <SDL_mixer.h>
 #include "audio.h"
+#else
+#include "audio_stub.h"
+#endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
