@@ -3,6 +3,8 @@
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
 
+#include "key.h"
+
 #define AUDIO_ENABLED
 #ifdef AUDIO_ENABLED
 #include <SDL_mixer.h>
@@ -10,6 +12,9 @@
 #else
 #include "audio_stub.h"
 #endif
+
+#include "action.h"
+#include "settings.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -86,6 +91,11 @@ struct effect2 {
 	u32 duration;
 	r32 rotation_start, rotation_rate;
 };
+
+const v2i g_v2i_up    = { .x =  0, .y =  1 };
+const v2i g_v2i_down  = { .x =  0, .y = -1 };
+const v2i g_v2i_left  = { .x = -1, .y =  0 };
+const v2i g_v2i_right = { .x =  1, .y =  0 };
 
 const color_t g_tile_fills[] = {
 	gi_nocolor,
@@ -187,35 +197,41 @@ void player_init(struct player *player, struct level *level)
 }
 
 static
-b32 tile_walkable(const struct level *level, s32 x, s32 y)
+b32 tile_walkable(const struct level *level, v2i tile)
 {
-	if (x < 0 || x >= level->map.dim.x)
+	if (tile.x < 0 || tile.x >= level->map.dim.x)
 		return false;
-	if (y < 0 || y >= level->map.dim.y)
+	if (tile.y < 0 || tile.y >= level->map.dim.y)
 		return false;
-	if (   level->map.tiles[y][x].type != TILE_HALL
-	    && level->map.tiles[y][x].type != TILE_DOOR)
+	if (   level->map.tiles[tile.y][tile.x].type != TILE_HALL
+	    && level->map.tiles[tile.y][tile.x].type != TILE_DOOR)
 		return false;
 	for (u32 i = 0; i < level->num_clones; ++i)
-		if (level->clones[i].x == x && level->clones[i].y == y)
+		if (v2i_equal(level->clones[i], tile))
 			return false;
 	return true;
 }
 
 static
-b32 tile_walkablev(const struct level *level, v2i tile)
+b32 tile_walkable_for_player(const struct level *level,
+                             const struct player *player, v2i offset)
 {
-	return tile_walkable(level, tile.x, tile.y);
+	const v2i tile = v2i_add(player->tile, offset);
+	if (!tile_walkable(level, tile))
+		return false;
+	for (u32 i = 0; i < player->num_clones; ++i)
+		if (!tile_walkable(level, v2i_add(tile, player->clones[i])))
+			return false;
+	return true;
 }
 
 static
-b32 tile_walkable_for_player(const struct level *level, s32 x, s32 y,
-                             const struct player *player)
+b32 player_can_rotate(const struct level *level, const struct player *player,
+                      b32 clockwise)
 {
-	if (!tile_walkable(level, x, y))
-		return false;
+	v2i(*perp)(v2i) = clockwise ? v2i_rperp : v2i_lperp;
 	for (u32 i = 0; i < player->num_clones; ++i)
-		if (!tile_walkable(level, x + player->clones[i].x, y + player->clones[i].y))
+		if (!tile_walkable(level, v2i_add(player->tile, perp(player->clones[i]))))
 			return false;
 	return true;
 }
@@ -316,8 +332,8 @@ void background_generate(array(struct effect) *effects, v2i screen)
 }
 
 gui_t *gui;
+gui_panel_t settings_panel;
 b32 quit = false;
-b32 music_enabled = true;
 u32 level_idx = 0;
 struct level level;
 struct player player;
@@ -337,9 +353,16 @@ int main(int argc, char *const argv[]) {
 
 	srand(time(NULL));
 
-	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE, (MAP_DIM_MAX + 2) * TILE_SIZE + 40, APP_NAME, WINDOW_CENTERED);
+	gui = gui_create(0, 0, (MAP_DIM_MAX + 2) * TILE_SIZE,
+	                (MAP_DIM_MAX + 2) * TILE_SIZE + 40,
+	                APP_NAME, WINDOW_CENTERED);
 	if (!gui)
 		return 1;
+
+	pgui_panel_init(gui, &settings_panel, TILE_SIZE, TILE_SIZE,
+	                MAP_DIM_MAX * TILE_SIZE, MAP_DIM_MAX * TILE_SIZE,
+	                "", GUI_PANEL_CLOSABLE | GUI_PANEL_SCROLLBARS);
+	hide_settings(&settings_panel);
 
 	gui_dim(gui, &screen.x, &screen.y);
 
@@ -366,6 +389,8 @@ int main(int argc, char *const argv[]) {
 
 	level_init(&level, &maps[level_idx]);
 	player_init(&player, &level);
+
+	load_settings();
 
 	bg_effects = array_create();
 	background_generate(&bg_effects, screen);
@@ -416,6 +441,9 @@ void frame(void)
 	gui_dim(gui, &screen.x, &screen.y);
 	offset = v2i_scale_inv(v2i_sub(screen, v2i_scale(level.map.dim, TILE_SIZE)), 2);
 
+	if (!settings_panel.hidden)
+		show_settings(gui, &settings_panel);
+
 #ifdef DEBUG
 	if (key_pressed(gui, KB_G))
 		background_generate(&bg_effects, screen);
@@ -451,34 +479,59 @@ void frame(void)
 			gui_txt(gui, x, y + 60, 32, APP_NAME, g_white, GUI_ALIGN_CENTER);
 	}
 
-	gui_style_push(gui, btn, g_gui_style_invis.btn);
+	{
+		const s32 dim = 30;
+		const s32 y = screen.y - dim;
+		const s32 border = 5;
+		const s32 y0_disabled = y + border;
+		const s32 y1_disabled = y + dim - border;
+		s32 x = screen.x - 90;
 
-	if (gui_btn_img(gui, screen.x - 60, screen.y - 30, 30, 30, "music.png", IMG_CENTERED) == BTN_PRESS) {
-		music_enabled = !music_enabled;
-		if (music_enabled)
-			music_play(&music);
-		else
-			music_stop_all();
-	}
-	if (!music_enabled) {
-		gui_line(gui, screen.x - 55, screen.y - 25, screen.x - 35, screen.y - 5,  2, g_red);
-		gui_line(gui, screen.x - 55, screen.y - 5,  screen.x - 35, screen.y - 25, 2, g_red);
-	}
-	if (gui_btn_img(gui, screen.x - 30, screen.y - 30, 30, 30, "sound.png", IMG_CENTERED) == BTN_PRESS)
-		sound_toggle();
-	if (!sound_enabled()) {
-		gui_line(gui, screen.x - 25, screen.y - 25, screen.x - 5, screen.y - 5,  2, g_red);
-		gui_line(gui, screen.x - 25, screen.y - 5,  screen.x - 5, screen.y - 25, 2, g_red);
+		gui_style_push(gui, btn, g_gui_style_invis.btn);
+
+		if (gui_btn_img(gui, x, y, 30, 30, "music.png", IMG_CENTERED) == BTN_PRESS) {
+			music_toggle();
+			save_settings();
+		}
+		if (!music_enabled()) {
+			gui_line(gui, x + border, y0_disabled, x + dim - border, y1_disabled, 2, g_red);
+			gui_line(gui, x + border, y1_disabled, x + dim - border, y0_disabled, 2, g_red);
+		}
+
+		x += dim;
+
+		if (gui_btn_img(gui, x, y, 30, 30, "sound.png", IMG_CENTERED) == BTN_PRESS) {
+			sound_toggle();
+			save_settings();
+		}
+		if (!sound_enabled()) {
+			gui_line(gui, x + border, y0_disabled, x + dim - border, y1_disabled, 2, g_red);
+			gui_line(gui, x + border, y1_disabled, x + dim - border, y0_disabled, 2, g_red);
+		}
+
+		x += dim;
+
+		if (gui_btn_img(gui, x, y, 30, 30, "settings.png", IMG_CENTERED) == BTN_PRESS) {
+			if (settings_panel.hidden)
+				settings_panel.hidden = false;
+			else
+				hide_settings(&settings_panel);
+		}
+		gui_style_pop(gui);
 	}
 
-	gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14, level.map.tip, g_white, GUI_ALIGN_CENTER);
+	gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14,
+	        level.map.tip, g_white, GUI_ALIGN_CENTER);
 
-	if (!level.complete && gui_btn_img(gui, offset.x + level.map.dim.x * TILE_SIZE / 2 - 15, offset.y - 50, 30, 30, "reset.png", IMG_CENTERED) == BTN_PRESS) {
-		level_init(&level, &maps[level_idx]);
-		player_init(&player, &level);
+	if (!level.complete) {
+		gui_style_push(gui, btn, g_gui_style_invis.btn);
+		if (gui_btn_img(gui, offset.x + level.map.dim.x * TILE_SIZE / 2 - 15,
+		                offset.y - 50, 30, 30, "reset.png", IMG_CENTERED) == BTN_PRESS) {
+			level_init(&level, &maps[level_idx]);
+			player_init(&player, &level);
+		}
+		gui_style_pop(gui);
 	}
-
-	gui_style_pop(gui);
 
 	if (!level.complete) {
 		for (s32 i = 0; i < level.map.dim.y; ++i) {
@@ -492,13 +545,16 @@ void frame(void)
 				case TILE_HALL:
 				case TILE_PLAYER:
 				case TILE_CLONE:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[TILE_HALL], g_tile_fills[TILE_WALL]);
+					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
+					         g_tile_fills[TILE_HALL], g_tile_fills[TILE_WALL]);
 				break;
 				case TILE_WALL:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[TILE_WALL], g_tile_fills[TILE_HALL]);
+					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
+					         g_tile_fills[TILE_WALL], g_tile_fills[TILE_HALL]);
 				break;
 				case TILE_DOOR:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[TILE_DOOR], g_tile_fills[TILE_WALL]);
+					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
+					         g_tile_fills[TILE_DOOR], g_tile_fills[TILE_WALL]);
 					if (frame_milli >= time_until_next_door_fx) {
 						door_effect_add(&door_effects, x, y);
 						time_until_next_door_fx = 100 + rand() % 100;
@@ -509,7 +565,8 @@ void frame(void)
 				}
 #ifdef SHOW_TRAVELLED
 				if (level.map.tiles[i][j].travelled)
-					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 4, g_red, g_nocolor);
+					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 4,
+					         g_red, g_nocolor);
 #endif
 			}
 		}
@@ -566,39 +623,42 @@ void frame(void)
 
 	if (!level.complete)
 		for (u32 i = 0; i < level.num_clones; ++i)
-			render_player(gui, offset, v2i_scale(level.clones[i], TILE_SIZE), g_tile_fills[TILE_CLONE]);
+			render_player(gui, offset, v2i_scale(level.clones[i], TILE_SIZE),
+			              g_tile_fills[TILE_CLONE]);
 
 	switch (player.dir) {
 	case DIR_NONE:
-		if (   key_down(gui, KB_W)
-		    && tile_walkable_for_player(&level, player.tile.x, player.tile.y + 1, &player)) {
+		if (   key_down(gui, g_key_bindings[ACTION_MOVE_UP])
+		    && settings_panel.hidden
+		    && tile_walkable_for_player(&level, &player, g_v2i_up)) {
 			player.dir = DIR_UP;
 			++player.tile.y;
 			sound_play(&sound_slide);
-		} else if (   key_down(gui, KB_S)
-		           && tile_walkable_for_player(&level, player.tile.x, player.tile.y - 1, &player)) {
+		} else if (   key_down(gui, g_key_bindings[ACTION_MOVE_DOWN])
+		           && settings_panel.hidden
+		           && tile_walkable_for_player(&level, &player, g_v2i_down)) {
 			player.dir = DIR_DOWN;
 			--player.tile.y;
 			sound_play(&sound_slide);
-		} else if (   key_down(gui, KB_A)
-		           && tile_walkable_for_player(&level, player.tile.x - 1, player.tile.y, &player)) {
+		} else if (   key_down(gui, g_key_bindings[ACTION_MOVE_LEFT])
+		           && settings_panel.hidden
+		           && tile_walkable_for_player(&level, &player, g_v2i_left)) {
 			player.dir = DIR_LEFT;
 			--player.tile.x;
 			sound_play(&sound_slide);
-		} else if (   key_down(gui, KB_D)
-		           && tile_walkable_for_player(&level, player.tile.x + 1, player.tile.y, &player)) {
+		} else if (   key_down(gui, g_key_bindings[ACTION_MOVE_RIGHT])
+		           && settings_panel.hidden
+		           && tile_walkable_for_player(&level, &player, g_v2i_right)) {
 			player.dir = DIR_RIGHT;
 			++player.tile.x;
 			sound_play(&sound_slide);
-		} else if (key_pressed(gui, KB_Q)) {
-			/* ccw */
-			b32 can_rotate = true;
-			for (u32 i = 0; i < player.num_clones; ++i)
-				if (!tile_walkablev(&level, v2i_add(player.tile, v2i_lperp(player.clones[i]))))
-					can_rotate = false;
-			if (can_rotate) {
+		} else if (key_pressed(gui, g_key_bindings[ACTION_ROTATE_CCW])) {
+			if (player_can_rotate(&level, &player, false)) {
 				for (u32 i = 0; i < player.num_clones; ++i) {
-					dissolve_effect_add(&dissolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
+					dissolve_effect_add(&dissolve_effects, offset,
+					                    v2i_add(player.tile, player.clones[i]),
+					                    g_tile_fills[TILE_CLONE],
+					                    ROTATION_EFFECT_DURATION_MILLI);
 					player.clones[i] = v2i_lperp(player.clones[i]);
 				}
 				player_entered_tile(&level, player.tile, &player);
@@ -606,15 +666,13 @@ void frame(void)
 			} else {
 				sound_play(&sound_error);
 			}
-		} else if (key_pressed(gui, KB_E)) {
-			/* cw */
-			b32 can_rotate = true;
-			for (u32 i = 0; i < player.num_clones; ++i)
-				if (!tile_walkablev(&level, v2i_add(player.tile, v2i_rperp(player.clones[i]))))
-					can_rotate = false;
-			if (can_rotate) {
+		} else if (key_pressed(gui, g_key_bindings[ACTION_ROTATE_CC])) {
+			if (player_can_rotate(&level, &player, true)) {
 				for (u32 i = 0; i < player.num_clones; ++i) {
-					dissolve_effect_add(&dissolve_effects, offset, v2i_add(player.tile, player.clones[i]), g_tile_fills[TILE_CLONE], ROTATION_EFFECT_DURATION_MILLI);
+					dissolve_effect_add(&dissolve_effects, offset,
+					                    v2i_add(player.tile, player.clones[i]),
+					                    g_tile_fills[TILE_CLONE],
+					                    ROTATION_EFFECT_DURATION_MILLI);
 					player.clones[i] = v2i_rperp(player.clones[i]);
 				}
 				player_entered_tile(&level, player.tile, &player);
@@ -628,8 +686,9 @@ void frame(void)
 		player.pos.y += WALK_SPEED * frame_milli / 1000.f;
 		if ((s32)player.pos.y >= player.tile.y * TILE_SIZE) {
 			player_entered_tile(&level, player.tile, &player);
-			if (   key_down(gui, KB_W)
-			    && tile_walkable_for_player(&level, player.tile.x, player.tile.y + 1, &player)) {
+			if (   key_down(gui, g_key_bindings[ACTION_MOVE_UP])
+			    && settings_panel.hidden
+			    && tile_walkable_for_player(&level, &player, g_v2i_up)) {
 				++player.tile.y;
 				sound_play(&sound_slide);
 			} else {
@@ -642,8 +701,9 @@ void frame(void)
 		player.pos.y -= WALK_SPEED * frame_milli / 1000.f;
 		if ((s32)player.pos.y <= player.tile.y * TILE_SIZE) {
 			player_entered_tile(&level, player.tile, &player);
-			if (   key_down(gui, KB_S)
-			    && tile_walkable_for_player(&level, player.tile.x, player.tile.y - 1, &player)) {
+			if (   key_down(gui, g_key_bindings[ACTION_MOVE_DOWN])
+			    && settings_panel.hidden
+			    && tile_walkable_for_player(&level, &player, g_v2i_down)) {
 				--player.tile.y;
 				sound_play(&sound_slide);
 			} else {
@@ -656,8 +716,9 @@ void frame(void)
 		player.pos.x -= WALK_SPEED * frame_milli / 1000.f;
 		if ((s32)player.pos.x <= player.tile.x * TILE_SIZE) {
 			player_entered_tile(&level, player.tile, &player);
-			if (   key_down(gui, KB_A)
-			    && tile_walkable_for_player(&level, player.tile.x - 1, player.tile.y, &player)) {
+			if (   key_down(gui, g_key_bindings[ACTION_MOVE_LEFT])
+			    && settings_panel.hidden
+			    && tile_walkable_for_player(&level, &player, g_v2i_left)) {
 				--player.tile.x;
 				sound_play(&sound_slide);
 			} else {
@@ -670,8 +731,9 @@ void frame(void)
 		player.pos.x += WALK_SPEED * frame_milli / 1000.f;
 		if ((s32)player.pos.x >= player.tile.x * TILE_SIZE) {
 			player_entered_tile(&level, player.tile, &player);
-			if (   key_down(gui, KB_D)
-			    && tile_walkable_for_player(&level, player.tile.x + 1, player.tile.y, &player)) {
+			if (   key_down(gui, g_key_bindings[ACTION_MOVE_RIGHT])
+			    && settings_panel.hidden
+			    && tile_walkable_for_player(&level, &player, g_v2i_right)) {
 				++player.tile.x;
 				sound_play(&sound_slide);
 			} else {
@@ -723,7 +785,8 @@ void frame(void)
 		level_idx = (level_idx + array_sz(maps) - 1) % array_sz(maps);
 		level_init(&level, &maps[level_idx]);
 		player_init(&player, &level);
-	} else if (key_pressed(gui, KB_SPACE)) {
+	} else if (   key_pressed(gui, g_key_bindings[ACTION_RESET])
+	           && settings_panel.hidden) {
 		if (key_mod(gui, KBM_CTRL)) {
 			const struct map current_map = maps[level_idx];
 			array_clear(maps);

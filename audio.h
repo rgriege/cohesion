@@ -20,15 +20,20 @@ void sound_toggle(void);
 
 b32  music_init(struct music *music, const char *file);
 void music_play(struct music *music);
+void music_stop(void);
 void music_destroy(struct music *music);
-
-void music_stop_all(void);
+b32  music_enabled(void);
+void music_enable(void);
+void music_disable(void);
+void music_toggle(void);
 
 
 
 /* Implementation */
 
 static b32 g_sound_enabled = true;
+static b32 g_music_enabled = true;
+static struct music g_music = { .handle = NULL };
 
 
 b32 audio_init()
@@ -107,12 +112,21 @@ b32 music_init(struct music *music, const char *file)
 
 void music_play(struct music *music)
 {
+	g_music = *music;
+	if (g_music_enabled) {
 #ifdef __EMSCRIPTEN__
-	/* Mix_FadeInMusic is an SDL2 feature */
-	Mix_PlayMusic(music->handle, -1);
+		/* Mix_FadeInMusic is an SDL2 feature */
+		Mix_PlayMusic(music->handle, -1);
 #else
-	Mix_FadeInMusic(music->handle, -1, 1000);
+		Mix_FadeInMusic(music->handle, -1, 1000);
 #endif
+	}
+}
+
+void music_stop(void)
+{
+	Mix_FadeOutMusic(1000);
+	g_music.handle = NULL;
 }
 
 void music_destroy(struct music *music)
@@ -120,7 +134,32 @@ void music_destroy(struct music *music)
 	Mix_FreeMusic(music->handle);
 }
 
-void music_stop_all(void)
+b32 music_enabled(void)
 {
-	Mix_FadeOutMusic(1000);
+	return g_music_enabled;
+}
+
+void music_enable(void)
+{
+	if (!g_music_enabled) {
+		g_music_enabled = true;
+		if (g_music.handle)
+			music_play(&g_music);
+	}
+}
+
+void music_disable(void)
+{
+	if (g_music_enabled) {
+		g_music_enabled = false;
+		music_stop();
+	}
+}
+
+void music_toggle(void)
+{
+	if (g_music_enabled)
+		music_disable();
+	else
+		music_enable();
 }

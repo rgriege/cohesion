@@ -15,5 +15,9 @@ void sound_toggle(void) { return; }
 b32  music_init(struct music *music, const char *file) { return true; }
 void music_play(struct music *music) { return; }
 void music_destroy(struct music *music) { return; }
+b32  music_enabled(void) { return false; }
+void music_enable(void) { return; }
+void music_disable(void) { return; }
+void music_toggle(void) { return; }
 
 void music_stop_all(void) { return; }
