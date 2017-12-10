@@ -546,7 +546,7 @@ void frame(void)
 			const s32 y = offset.y + i * TILE_SIZE;
 			for (s32 j = 0; j < level.map.dim.x; ++j) {
 				const s32 x = offset.x + j * TILE_SIZE;
-				const  enum tile_type type = level.map.tiles[i][j].type;
+				const enum tile_type type = level.map.tiles[i][j].type;
 				switch (type) {
 				case TILE_BLANK:
 				break;
@@ -554,15 +554,15 @@ void frame(void)
 				case TILE_PLAYER:
 				case TILE_CLONE:
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-					         g_tile_fills[TILE_HALL], g_tile_fills[TILE_WALL]);
+					         g_tile_fills[TILE_HALL], gui_style(gui)->bg_color);
 				break;
 				case TILE_WALL:
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-					         g_tile_fills[TILE_WALL], g_tile_fills[TILE_HALL]);
+					         g_tile_fills[TILE_WALL], gui_style(gui)->bg_color);
 				break;
 				case TILE_DOOR:
 					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-					         g_tile_fills[TILE_DOOR], g_tile_fills[TILE_WALL]);
+					         g_tile_fills[TILE_DOOR], gui_style(gui)->bg_color);
 					if (frame_milli >= time_until_next_door_fx) {
 						door_effect_add(&door_effects, x, y);
 						time_until_next_door_fx = 100 + rand() % 100;
