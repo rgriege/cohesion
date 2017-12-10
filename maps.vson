@@ -33,7 +33,7 @@ height: 5
 13221
 11111
 desc: avoid the clones
-tip: if you get stuck, press SPACE or the reset button below
+tip: if you get stuck, press C or the reset button below
 width: 9
 height: 5
 011111000
@@ -42,7 +42,7 @@ height: 5
 132422251
 111111111
 desc: ccw
-tip: press q to rotate counter-clockwise
+tip: press Q to rotate counter-clockwise
 width: 7
 height: 4
 1111110
@@ -50,7 +50,7 @@ height: 4
 1232251
 1111111
 desc: cw
-tip: press e to rotate clockwise
+tip: press E to rotate clockwise
 width: 7
 height: 4
 0111111

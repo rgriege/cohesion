@@ -7,9 +7,10 @@ static gui_key_t g_key_bindings[ACTION_COUNT] = {
 	KB_S,
 	KB_A,
 	KB_D,
-	KB_Q,
 	KB_E,
-	KB_SPACE,
+	KB_Q,
+	KB_Z,
+	KB_C,
 };
 
 void load_settings(void);
