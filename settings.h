@@ -15,6 +15,9 @@ static gui_key_t g_key_bindings[ACTION_COUNT] = {
 
 void load_settings(void);
 void save_settings(void);
+
+b32 is_key_bound(gui_key_t key);
+
 void show_settings(gui_t *gui, gui_panel_t *panel);
 void hide_settings(gui_panel_t *panel);
 
@@ -99,12 +102,17 @@ void save_settings(void)
 }
 
 static
-b32 is_key_bound(gui_key_t key, u32 excluding)
+b32 is_key_bound_excluding(gui_key_t key, u32 excluding)
 {
 	for (u32 i = 0; i < ACTION_COUNT; ++i)
 		if (i != excluding && g_key_bindings[i] == key)
 			return true;
 	return false;
+}
+
+b32 is_key_bound(gui_key_t key)
+{
+	return is_key_bound_excluding(key, ~0);
 }
 
 void show_settings(gui_t *gui, gui_panel_t *panel)
@@ -134,7 +142,7 @@ void show_settings(gui_t *gui, gui_panel_t *panel)
 		const u8 *kb = keyboard_state(gui);
 		b32 rebound = false;
 		for (u32 i = 0; i < KB_COUNT; ++i) {
-			if (is_key(i) && kb[i] && !is_key_bound(i, g_action_to_bind)) {
+			if (is_key(i) && kb[i] && !is_key_bound_excluding(i, g_action_to_bind)) {
 				g_key_bindings[g_action_to_bind] = i;
 				rebound = true;
 				break;
