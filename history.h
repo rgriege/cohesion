@@ -1,51 +1,57 @@
-void history_push(enum action action, u32 num_clones);
-b32  history_pop(enum action *action, u32 *num_clones);
-void history_clear(void);
+#define HISTORY_EVENT_MAX 512
 
-/* Implementation */
-
-#define HISTORY_MAX 512
-struct history
+struct history_event
 {
 	enum action action;
 	u32 num_clones;
 };
 
-struct history g_history[HISTORY_MAX];
-u32 g_history_begin = 0;
-u32 g_history_end = 0;
-
-void history_push(enum action action, u32 num_clones)
+struct history
 {
-	struct history *history =   g_history_end < HISTORY_MAX
-	                          ? &g_history[g_history_end] : &g_history[0];
-	history->action     = action;
-	history->num_clones = num_clones;
-	g_history_end = (g_history_end + 1) % HISTORY_MAX;
-	if (g_history_end == g_history_begin)
-		g_history_begin = (g_history_begin + 1) % HISTORY_MAX;
+	struct history_event events[HISTORY_EVENT_MAX];
+	u32 begin;
+	u32 end;
+};
+
+void history_push(struct history *hist, enum action action, u32 num_clones);
+b32  history_pop(struct history *hist, enum action *action, u32 *num_clones);
+void history_clear(struct history *hist);
+
+
+
+/* Implementation */
+
+void history_push(struct history *hist, enum action action, u32 num_clones)
+{
+	struct history_event *event =   hist->end < HISTORY_EVENT_MAX
+	                              ? &hist->events[hist->end] : &hist->events[0];
+	event->action     = action;
+	event->num_clones = num_clones;
+	hist->end = (hist->end + 1) % HISTORY_EVENT_MAX;
+	if (hist->end == hist->begin)
+		hist->begin = (hist->begin + 1) % HISTORY_EVENT_MAX;
 }
 
-b32 history_pop(enum action *action, u32 *num_clones)
+b32 history_pop(struct history *hist, enum action *action, u32 *num_clones)
 {
-	if (g_history_begin == g_history_end) {
+	if (hist->begin == hist->end) {
 		return false;
-	} else if (g_history_end == 0) {
-		struct history *history = &g_history[HISTORY_MAX - 1];
-		*action     = history->action;
-		*num_clones = history->num_clones;
-		g_history_end = HISTORY_MAX - 1;
+	} else if (hist->end == 0) {
+		struct history_event *event = &hist->events[HISTORY_EVENT_MAX - 1];
+		*action     = event->action;
+		*num_clones = event->num_clones;
+		hist->end = HISTORY_EVENT_MAX - 1;
 		return true;
 	} else {
-		struct history *history = &g_history[--g_history_end];
-		*action     = history->action;
-		*num_clones = history->num_clones;
+		struct history_event *event = &hist->events[--hist->end];
+		*action     = event->action;
+		*num_clones = event->num_clones;
 		return true;
 	}
 }
 
-void history_clear(void)
+void history_clear(struct history *hist)
 {
-	g_history_begin = 0;
-	g_history_end = 0;
+	hist->begin = 0;
+	hist->end = 0;
 }

@@ -380,6 +380,7 @@ array(struct effect) dissolve_effects;
 array(struct effect2) door_effects;
 v2i screen, offset;
 v2i cursor;
+struct history play_history, edit_history;
 enum action editor_last_action = ACTION_COUNT;
 u32 editor_repeat_timer;
 
@@ -387,6 +388,7 @@ u32 editor_repeat_timer;
 void frame(void);
 void play(void);
 void edit(void);
+struct map editor_create_map(struct map map_play);
 
 int main(int argc, char *const argv[]) {
 	log_add_std(LOG_STDOUT);
@@ -579,7 +581,7 @@ void play(void)
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
 		if (gui_btn_img(gui, offset.x + level.map.dim.x * TILE_SIZE / 2 - 15,
 		                offset.y - 50, 30, 30, "reset.png", IMG_CENTERED) == BTN_PRESS) {
-			history_clear();
+			history_clear(&play_history);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		}
@@ -716,7 +718,7 @@ void play(void)
 					player.clones[i] = v2i_lperp(player.clones[i]);
 				}
 				player_entered_tile(&level, &player, &num_clones_attached);
-				history_push(ACTION_ROTATE_CCW, num_clones_attached);
+				history_push(&play_history, ACTION_ROTATE_CCW, num_clones_attached);
 				sound_play(&sound_swipe);
 			} else {
 				sound_play(&sound_error);
@@ -732,7 +734,7 @@ void play(void)
 					player.clones[i] = v2i_rperp(player.clones[i]);
 				}
 				player_entered_tile(&level, &player, &num_clones_attached);
-				history_push(ACTION_ROTATE_CW, num_clones_attached);
+				history_push(&play_history, ACTION_ROTATE_CW, num_clones_attached);
 				sound_play(&sound_swipe);
 			} else {
 				sound_play(&sound_error);
@@ -741,7 +743,7 @@ void play(void)
 		           && settings_panel.hidden) {
 			enum action action;
 			u32 num_clones;
-			if (history_pop(&action, &num_clones)) {
+			if (history_pop(&play_history, &action, &num_clones)) {
 				for (u32 i = 0; i < num_clones; ++i) {
 					const v2i tile_relative = player.clones[--player.num_clones];
 					const v2i tile_absolute = v2i_add(player.tile, tile_relative);
@@ -793,7 +795,7 @@ void play(void)
 			}
 		} else if (   key_pressed(gui, g_key_bindings[ACTION_RESET])
 		           && settings_panel.hidden) {
-			history_clear();
+			history_clear(&play_history);
 			if (key_mod(gui, KBM_CTRL)) {
 				const struct map current_map = maps[level_idx];
 				array_clear(maps);
@@ -805,12 +807,12 @@ void play(void)
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		} else if (key_pressed(gui, KB_N)) {
-			history_clear();
+			history_clear(&play_history);
 			level_idx = (level_idx + 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 		} else if (key_pressed(gui, KB_P)) {
-			history_clear();
+			history_clear(&play_history);
 			level_idx = (level_idx + array_sz(maps) - 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
@@ -821,7 +823,7 @@ void play(void)
 		if ((s32)player.pos.y >= player.tile.y * TILE_SIZE) {
 			u32 num_clones_attached;
 			player_entered_tile(&level, &player, &num_clones_attached);
-			history_push(ACTION_MOVE_UP, num_clones_attached);
+			history_push(&play_history, ACTION_MOVE_UP, num_clones_attached);
 			if (   key_down(gui, g_key_bindings[ACTION_MOVE_UP])
 			    && settings_panel.hidden
 			    && tile_walkable_for_player(&level, &player, g_v2i_up)) {
@@ -838,7 +840,7 @@ void play(void)
 		if ((s32)player.pos.y <= player.tile.y * TILE_SIZE) {
 			u32 num_clones_attached;
 			player_entered_tile(&level, &player, &num_clones_attached);
-			history_push(ACTION_MOVE_DOWN, num_clones_attached);
+			history_push(&play_history, ACTION_MOVE_DOWN, num_clones_attached);
 			if (   key_down(gui, g_key_bindings[ACTION_MOVE_DOWN])
 			    && settings_panel.hidden
 			    && tile_walkable_for_player(&level, &player, g_v2i_down)) {
@@ -855,7 +857,7 @@ void play(void)
 		if ((s32)player.pos.x <= player.tile.x * TILE_SIZE) {
 			u32 num_clones_attached;
 			player_entered_tile(&level, &player, &num_clones_attached);
-			history_push(ACTION_MOVE_LEFT, num_clones_attached);
+			history_push(&play_history, ACTION_MOVE_LEFT, num_clones_attached);
 			if (   key_down(gui, g_key_bindings[ACTION_MOVE_LEFT])
 			    && settings_panel.hidden
 			    && tile_walkable_for_player(&level, &player, g_v2i_left)) {
@@ -872,7 +874,7 @@ void play(void)
 		if ((s32)player.pos.x >= player.tile.x * TILE_SIZE) {
 			u32 num_clones_attached;
 			player_entered_tile(&level, &player, &num_clones_attached);
-			history_push(ACTION_MOVE_RIGHT, num_clones_attached);
+			history_push(&play_history, ACTION_MOVE_RIGHT, num_clones_attached);
 			if (   key_down(gui, g_key_bindings[ACTION_MOVE_RIGHT])
 			    && settings_panel.hidden
 			    && tile_walkable_for_player(&level, &player, g_v2i_right)) {
@@ -913,7 +915,7 @@ void play(void)
 	}
 
 	if (level.complete && array_empty(dissolve_effects)) {
-		history_clear();
+		history_clear(&play_history);
 		level_idx = (level_idx + 1) % array_sz(maps);
 		level_init(&level, &maps[level_idx]);
 		player_init(&player, &level);
@@ -921,27 +923,11 @@ void play(void)
 	}
 
 	if (key_pressed(gui, KB_F1) && !is_key_bound(KB_F1)) {
-		struct map map_edit = { .dim = { MAP_DIM_MAX, MAP_DIM_MAX } };
-		const v2i offset_ = v2i_scale_inv(v2i_sub(map_edit.dim, level.map.dim), 2);
-		for (s32 i = 0; i < offset_.y; ++i)
-			for (s32 j = 0; j < map_edit.dim.x; ++j)
-				map_edit.tiles[i][j].type = TILE_BLANK;
-		for (s32 i = offset_.y; i < offset_.y + level.map.dim.y; ++i) {
-			for (s32 j = 0; j < offset_.x; ++j)
-				map_edit.tiles[i][j].type = TILE_BLANK;
-			for (s32 j = offset_.x; j < offset_.x + level.map.dim.x; ++j)
-				map_edit.tiles[i][j] = maps[level_idx].tiles[i - offset_.y][j - offset_.x];
-			for (s32 j = offset_.x + level.map.dim.x; j < map_edit.dim.x; ++j)
-				map_edit.tiles[i][j].type = TILE_BLANK;
-		}
-		for (s32 i = offset_.y + level.map.dim.y; i < map_edit.dim.y; ++i)
-			for (s32 j = 0; j < map_edit.dim.x; ++j)
-				map_edit.tiles[i][j].type = TILE_BLANK;
-		level.map.dim = map_edit.dim;
-		memcpy(level.map.tiles, map_edit.tiles, sizeof(map_edit.tiles));
+		level.map = editor_create_map(maps[level_idx]);
 		in_editor = true;
-		cursor = offset_;
-		history_clear();
+		cursor.x = MAP_DIM_MAX / 2 - 1;
+		cursor.y = MAP_DIM_MAX / 2 - 1;
+		history_clear(&play_history);
 	}
 }
 
@@ -999,20 +985,65 @@ void edit(void)
 
 	if (editor_attempt_action(ACTION_MOVE_UP)) {
 		cursor.y = min(cursor.y + 1, MAP_DIM_MAX - 1);
+		history_push(&edit_history, ACTION_MOVE_UP, 0);
 	} else if (editor_attempt_action(ACTION_MOVE_DOWN)) {
 		cursor.y = max(cursor.y - 1, 0);
+		history_push(&edit_history, ACTION_MOVE_DOWN, 0);
 	} else if (editor_attempt_action(ACTION_MOVE_LEFT)) {
 		cursor.x = max(cursor.x - 1, 0);
+		history_push(&edit_history, ACTION_MOVE_LEFT, 0);
 	} else if (editor_attempt_action(ACTION_MOVE_RIGHT)) {
 		cursor.x = min(cursor.x + 1, MAP_DIM_MAX - 1);
+		history_push(&edit_history, ACTION_MOVE_RIGHT, 0);
 	} else if (editor_attempt_action(ACTION_ROTATE_CW)) {
 		level.map.tiles[cursor.y][cursor.x].type
 			= (level.map.tiles[cursor.y][cursor.x].type + 1) % (TILE_DOOR + 1);
+		history_push(&edit_history, ACTION_ROTATE_CW, 0);
 		save_maps(maps);
 	} else if (editor_attempt_action(ACTION_ROTATE_CCW)) {
 		level.map.tiles[cursor.y][cursor.x].type
 			= (level.map.tiles[cursor.y][cursor.x].type + TILE_DOOR) % (TILE_DOOR + 1);
+		history_push(&edit_history, ACTION_ROTATE_CCW, 0);
 		save_maps(maps);
+	} else if (editor_attempt_action(ACTION_UNDO)) {
+		enum action action;
+		u32 num_clones;
+		b32 stop = false;
+		while (!stop && history_pop(&edit_history, &action, &num_clones)) {
+			switch (action) {
+			case ACTION_MOVE_UP:
+				--cursor.y;
+			break;
+			case ACTION_MOVE_DOWN:
+				++cursor.y;
+			break;
+			case ACTION_MOVE_LEFT:
+				++cursor.x;
+			break;
+			case ACTION_MOVE_RIGHT:
+				--cursor.x;
+			break;
+			case ACTION_ROTATE_CW:
+				level.map.tiles[cursor.y][cursor.x].type
+					= (level.map.tiles[cursor.y][cursor.x].type + TILE_DOOR) % (TILE_DOOR + 1);
+				save_maps(maps);
+				stop = true;
+			break;
+			case ACTION_ROTATE_CCW:
+				level.map.tiles[cursor.y][cursor.x].type
+					= (level.map.tiles[cursor.y][cursor.x].type + 1) % (TILE_DOOR + 1);
+				save_maps(maps);
+				stop = true;
+			break;
+			case ACTION_UNDO:
+			case ACTION_RESET:
+			case ACTION_COUNT:
+			break;
+			}
+		}
+	} else if (editor_attempt_action(ACTION_RESET)) {
+		level.map = editor_create_map(maps[level_idx]);
+		history_clear(&edit_history);
 	}
 
 	if (gui_npt(gui, 2, screen.y - TILE_SIZE + 2, screen.x - 4, TILE_SIZE - 4,
@@ -1036,4 +1067,27 @@ void edit(void)
 
 	gui_rect(gui, offset.x + cursor.x * TILE_SIZE, offset.y + cursor.y * TILE_SIZE,
 	         TILE_SIZE, TILE_SIZE, g_nocolor, g_white);
+}
+
+struct map editor_create_map(struct map map_play)
+{
+	struct map map_edit = { .dim = { MAP_DIM_MAX, MAP_DIM_MAX } };
+	const v2i offset_ = v2i_scale_inv(v2i_sub(map_edit.dim, map_play.dim), 2);
+	for (s32 i = 0; i < offset_.y; ++i)
+		for (s32 j = 0; j < map_edit.dim.x; ++j)
+			map_edit.tiles[i][j].type = TILE_BLANK;
+	for (s32 i = offset_.y; i < offset_.y + map_play.dim.y; ++i) {
+		for (s32 j = 0; j < offset_.x; ++j)
+			map_edit.tiles[i][j].type = TILE_BLANK;
+		for (s32 j = offset_.x; j < offset_.x + map_play.dim.x; ++j)
+			map_edit.tiles[i][j] = map_play.tiles[i - offset_.y][j - offset_.x];
+		for (s32 j = offset_.x + level.map.dim.x; j < map_edit.dim.x; ++j)
+			map_edit.tiles[i][j].type = TILE_BLANK;
+	}
+	for (s32 i = offset_.y + level.map.dim.y; i < map_edit.dim.y; ++i)
+		for (s32 j = 0; j < map_edit.dim.x; ++j)
+			map_edit.tiles[i][j].type = TILE_BLANK;
+	strcpy(map_edit.desc, map_play.desc);
+	strcpy(map_edit.tip, map_play.tip);
+	return map_edit;
 }
