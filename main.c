@@ -1,11 +1,12 @@
 #include <time.h>
 
+#include "config.h"
+
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
 
 #include "key.h"
 
-#define AUDIO_ENABLED
 #ifdef AUDIO_ENABLED
 #include <SDL_mixer.h>
 #include "audio.h"
@@ -13,166 +14,17 @@
 #include "audio_stub.h"
 #endif
 
+#include "types.h"
+#include "constants.h"
 #include "action.h"
 #include "history.h"
 #include "settings.h"
+#include "disk.h"
+#include "editor.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-
-#define APP_NAME "Cohesion"
-#define MAP_DIM_MAX 16
-#define MAP_TIP_MAX 64
-#define TILE_SIZE 20
-#define WALK_SPEED 80
-#define CLONE_CNT_MAX 32
-#define TILE_BORDER_DIM 1
-#define FPS_CAP 30
-// #define SHOW_TRAVELLED
-#define LEVEL_COMPLETE_EFFECT_DURATION_MILLI 1000
-#define ROTATION_EFFECT_DURATION_MILLI 250
-#define EDITOR_REPEAT_INTERVAL 150
-
-enum tile_type {
-	TILE_BLANK,
-	TILE_WALL,
-	TILE_HALL,
-	TILE_PLAYER,
-	TILE_CLONE,
-	TILE_DOOR,
-};
-
-struct tile {
-	enum tile_type type;
-#ifdef SHOW_TRAVELLED
-	b32 travelled;
-#endif
-};
-
-struct map {
-	char tip[MAP_TIP_MAX];
-	char desc[MAP_TIP_MAX];
-	v2i dim;
-	struct tile tiles[MAP_DIM_MAX][MAP_DIM_MAX];
-};
-
-struct level {
-	struct map map;
-	v2i player_start;
-	v2i clones[CLONE_CNT_MAX];
-	u32 num_clones;
-	b32 complete;
-};
-
-enum dir {
-	DIR_NONE,
-	DIR_UP,
-	DIR_DOWN,
-	DIR_LEFT,
-	DIR_RIGHT,
-};
-
-struct player {
-	v2i tile;
-	v2f pos;
-	enum dir dir;
-	v2i clones[CLONE_CNT_MAX];
-	u32 num_clones;
-};
-
-struct effect {
-	v2i pos;
-	color_t color;
-	r32 t;
-	u32 duration;
-};
-
-struct effect2 {
-	v2f pos;
-	color_t color;
-	r32 t;
-	u32 duration;
-	r32 rotation_start, rotation_rate;
-};
-
-const v2i g_v2i_up    = { .x =  0, .y =  1 };
-const v2i g_v2i_down  = { .x =  0, .y = -1 };
-const v2i g_v2i_left  = { .x = -1, .y =  0 };
-const v2i g_v2i_right = { .x =  1, .y =  0 };
-
-const color_t g_tile_fills[] = {
-	gi_nocolor,
-	gi_black,
-	gi_grey128,
-	gi_orange,
-	gi_lightblue,
-	gi_yellow,
-};
-
-static
-b32 load_maps(array(struct map) *maps)
-{
-	b32 success = false;
-	u32 n;
-	FILE *fp;
-
-	fp = fopen("maps.vson", "r");
-	if (!fp)
-		return false;
-
-	if (!vson_read_u32(fp, "maps", &n))
-		goto out;
-
-	for (u32 i = 0; i < n; ++i) {
-		struct map map;
-		char row[MAP_DIM_MAX + 1];
-		if (!vson_read_str(fp, "desc", map.desc, MAP_TIP_MAX))
-			goto out;
-		if (!vson_read_str(fp, "tip", map.tip, MAP_TIP_MAX))
-			goto out;
-		if (!vson_read_s32(fp, "width", &map.dim.x))
-			goto out;
-		if (!vson_read_s32(fp, "height", &map.dim.y))
-			goto out;
-		for (s32 i = 0; i < map.dim.y; ++i) {
-			fgets(row, sizeof(row), fp);
-			for (s32 j = 0; j < map.dim.x; ++j)
-				map.tiles[map.dim.y - i - 1][j].type = row[j] - '0';
-		}
-		array_append(*maps, map);
-	}
-	success = true;
-
-out:
-	if (!success)
-		array_clear(*maps);
-	return success;
-}
-
-static
-void save_maps(array(const struct map) maps)
-{
-	FILE *fp = fopen("maps.vson", "w");
-	if (!fp) {
-		log_error("Failed to open save file");
-		return;
-	}
-
-	vson_write_u32(fp, "maps", array_sz(maps));
-	array_foreach(maps, const struct map, map) {
-		vson_write_str(fp, "desc", map->desc);
-		vson_write_str(fp, "tip", map->tip);
-		vson_write_s32(fp, "width", map->dim.x);
-		vson_write_s32(fp, "height", map->dim.y);
-		for (s32 i = 0; i < map->dim.y; ++i) {
-			for (s32 j = 0; j < map->dim.x; ++j)
-				fputc(map->tiles[map->dim.y - i - 1][j].type + '0', fp);
-			fputc('\n', fp);
-		}
-	}
-	fclose(fp);
-}
 
 static
 void level_init(struct level *level, const struct map *map)
@@ -380,15 +232,11 @@ array(struct effect) dissolve_effects;
 array(struct effect2) door_effects;
 v2i screen, offset;
 v2i cursor;
-struct history play_history, edit_history;
-enum action editor_last_action = ACTION_COUNT;
-u32 editor_repeat_timer;
+struct history play_history;
 
 
 void frame(void);
 void play(void);
-void edit(void);
-struct map editor_create_map(struct map map_play);
 
 int main(int argc, char *const argv[]) {
 	log_add_std(LOG_STDOUT);
@@ -443,6 +291,8 @@ int main(int argc, char *const argv[]) {
 
 	music_play(&music);
 
+	editor_init();
+
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop(frame, 0, 0);
 	return 0;
@@ -486,10 +336,19 @@ void frame(void)
 	if (!settings_panel.hidden)
 		show_settings(gui, &settings_panel);
 
-	if (in_editor)
-		edit();
-	else
+	if (in_editor) {
+		b32 done;
+		editor_update(gui, &done);
+		if (done) {
+			save_maps(maps);
+			history_clear(&play_history);
+			level_init(&level, &maps[level_idx]);
+			player_init(&player, &level);
+			in_editor = false;
+		}
+	} else {
 		play();
+	}
 
 	quit = key_down(gui, KB_ESCAPE);
 
@@ -923,171 +782,7 @@ void play(void)
 	}
 
 	if (key_pressed(gui, KB_F1) && !is_key_bound(KB_F1)) {
-		level.map = editor_create_map(maps[level_idx]);
+		editor_edit_map(&maps[level_idx]);
 		in_editor = true;
-		cursor.x = MAP_DIM_MAX / 2 - 1;
-		cursor.y = MAP_DIM_MAX / 2 - 1;
-		history_clear(&play_history);
 	}
-}
-
-static
-b32 editor_attempt_action(enum action action)
-{
-	if (!key_down(gui, g_key_bindings[action])) {
-		if (editor_last_action == action)
-			editor_last_action = ACTION_COUNT;
-		return false;
-	} else if (editor_last_action == ACTION_COUNT) {
-		editor_last_action = action;
-		editor_repeat_timer = EDITOR_REPEAT_INTERVAL;
-		return true;
-	} else if (action != editor_last_action) {
-		return false;
-	} else if (editor_repeat_timer <= frame_milli) {
-		editor_repeat_timer =   EDITOR_REPEAT_INTERVAL
-		                      - (frame_milli - editor_repeat_timer);
-		return true;
-	} else {
-		editor_repeat_timer -= frame_milli;
-		return false;
-	}
-}
-
-void edit(void)
-{
-	if (key_pressed(gui, KB_F1) && !is_key_bound(KB_F1)) {
-		s32 min_i = MAP_DIM_MAX, min_j = MAP_DIM_MAX;
-		s32 max_i = 0, max_j = 0;
-		struct map map_play;
-		for (s32 i = 0; i < level.map.dim.y; ++i) {
-			for (s32 j = 0; j < level.map.dim.x; ++j) {
-				if (level.map.tiles[i][j].type != TILE_BLANK) {
-					min_i = min(min_i, i);
-					min_j = min(min_j, j);
-					max_i = max(max_i, i);
-					max_j = max(max_j, j);
-				}
-			}
-		}
-		map_play.dim.x = max_j - min_j + 1;
-		map_play.dim.y = max_i - min_i + 1;
-		for (s32 i = 0; i < map_play.dim.y; ++i)
-			for (s32 j = 0; j < map_play.dim.x; ++j)
-				map_play.tiles[i][j] = level.map.tiles[i + min_i][j + min_j];
-		maps[level_idx].dim = map_play.dim;
-		memcpy(maps[level_idx].tiles, map_play.tiles, sizeof(map_play.tiles));
-		level_init(&level, &maps[level_idx]);
-		player_init(&player, &level);
-		in_editor = false;
-		offset = v2i_scale_inv(v2i_sub(screen, v2i_scale(level.map.dim, TILE_SIZE)), 2);
-	}
-
-	if (editor_attempt_action(ACTION_MOVE_UP)) {
-		cursor.y = min(cursor.y + 1, MAP_DIM_MAX - 1);
-		history_push(&edit_history, ACTION_MOVE_UP, 0);
-	} else if (editor_attempt_action(ACTION_MOVE_DOWN)) {
-		cursor.y = max(cursor.y - 1, 0);
-		history_push(&edit_history, ACTION_MOVE_DOWN, 0);
-	} else if (editor_attempt_action(ACTION_MOVE_LEFT)) {
-		cursor.x = max(cursor.x - 1, 0);
-		history_push(&edit_history, ACTION_MOVE_LEFT, 0);
-	} else if (editor_attempt_action(ACTION_MOVE_RIGHT)) {
-		cursor.x = min(cursor.x + 1, MAP_DIM_MAX - 1);
-		history_push(&edit_history, ACTION_MOVE_RIGHT, 0);
-	} else if (editor_attempt_action(ACTION_ROTATE_CW)) {
-		level.map.tiles[cursor.y][cursor.x].type
-			= (level.map.tiles[cursor.y][cursor.x].type + 1) % (TILE_DOOR + 1);
-		history_push(&edit_history, ACTION_ROTATE_CW, 0);
-		save_maps(maps);
-	} else if (editor_attempt_action(ACTION_ROTATE_CCW)) {
-		level.map.tiles[cursor.y][cursor.x].type
-			= (level.map.tiles[cursor.y][cursor.x].type + TILE_DOOR) % (TILE_DOOR + 1);
-		history_push(&edit_history, ACTION_ROTATE_CCW, 0);
-		save_maps(maps);
-	} else if (editor_attempt_action(ACTION_UNDO)) {
-		enum action action;
-		u32 num_clones;
-		b32 stop = false;
-		while (!stop && history_pop(&edit_history, &action, &num_clones)) {
-			switch (action) {
-			case ACTION_MOVE_UP:
-				--cursor.y;
-			break;
-			case ACTION_MOVE_DOWN:
-				++cursor.y;
-			break;
-			case ACTION_MOVE_LEFT:
-				++cursor.x;
-			break;
-			case ACTION_MOVE_RIGHT:
-				--cursor.x;
-			break;
-			case ACTION_ROTATE_CW:
-				level.map.tiles[cursor.y][cursor.x].type
-					= (level.map.tiles[cursor.y][cursor.x].type + TILE_DOOR) % (TILE_DOOR + 1);
-				save_maps(maps);
-				stop = true;
-			break;
-			case ACTION_ROTATE_CCW:
-				level.map.tiles[cursor.y][cursor.x].type
-					= (level.map.tiles[cursor.y][cursor.x].type + 1) % (TILE_DOOR + 1);
-				save_maps(maps);
-				stop = true;
-			break;
-			case ACTION_UNDO:
-			case ACTION_RESET:
-			case ACTION_COUNT:
-			break;
-			}
-		}
-	} else if (editor_attempt_action(ACTION_RESET)) {
-		level.map = editor_create_map(maps[level_idx]);
-		history_clear(&edit_history);
-	}
-
-	if (gui_npt(gui, 2, screen.y - TILE_SIZE + 2, screen.x - 4, TILE_SIZE - 4,
-	            level.map.desc, MAP_TIP_MAX - 1, "description", 0))
-		save_maps(maps);
-
-	for (s32 i = 0; i < level.map.dim.y; ++i) {
-		const s32 y = offset.y + i * TILE_SIZE;
-		for (s32 j = 0; j < level.map.dim.x; ++j) {
-			const s32 x = offset.x + j * TILE_SIZE;
-			const enum tile_type type = level.map.tiles[i][j].type;
-			const color_t color = { .r=0x32, .g=0x2f, .b=0x2f, .a=0xff };
-			gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-			         g_tile_fills[type], color);
-		}
-	}
-
-	if (gui_npt(gui, 2, 2, screen.x - 4, TILE_SIZE - 4,
-	            level.map.tip, MAP_TIP_MAX - 1, "tip", 0))
-		save_maps(maps);
-
-	gui_rect(gui, offset.x + cursor.x * TILE_SIZE, offset.y + cursor.y * TILE_SIZE,
-	         TILE_SIZE, TILE_SIZE, g_nocolor, g_white);
-}
-
-struct map editor_create_map(struct map map_play)
-{
-	struct map map_edit = { .dim = { MAP_DIM_MAX, MAP_DIM_MAX } };
-	const v2i offset_ = v2i_scale_inv(v2i_sub(map_edit.dim, map_play.dim), 2);
-	for (s32 i = 0; i < offset_.y; ++i)
-		for (s32 j = 0; j < map_edit.dim.x; ++j)
-			map_edit.tiles[i][j].type = TILE_BLANK;
-	for (s32 i = offset_.y; i < offset_.y + map_play.dim.y; ++i) {
-		for (s32 j = 0; j < offset_.x; ++j)
-			map_edit.tiles[i][j].type = TILE_BLANK;
-		for (s32 j = offset_.x; j < offset_.x + map_play.dim.x; ++j)
-			map_edit.tiles[i][j] = map_play.tiles[i - offset_.y][j - offset_.x];
-		for (s32 j = offset_.x + level.map.dim.x; j < map_edit.dim.x; ++j)
-			map_edit.tiles[i][j].type = TILE_BLANK;
-	}
-	for (s32 i = offset_.y + level.map.dim.y; i < map_edit.dim.y; ++i)
-		for (s32 j = 0; j < map_edit.dim.x; ++j)
-			map_edit.tiles[i][j].type = TILE_BLANK;
-	strcpy(map_edit.desc, map_play.desc);
-	strcpy(map_edit.tip, map_play.tip);
-	return map_edit;
 }
