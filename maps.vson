@@ -1,4 +1,4 @@
-maps: 26
+maps: 27
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -255,17 +255,12 @@ height: 4
 131
 151
 111
-desc: test
+desc: L-shape orientation
 tip: 
 width: 9
-height: 10
+height: 5
+111000111
+121111151
+122232421
+122224221
 111111111
-122242221
-122424221
-124222421
-132222241
-124222421
-122424221
-122242221
-111151111
-000111000
