@@ -71,7 +71,9 @@ b32 editor_attempt_action(enum action action, gui_t *gui)
 {
 	const u32 frame_milli = gui_frame_time_milli(gui);
 
-	if (!key_down(gui, g_key_bindings[action])) {
+	if (gui_any_widget_has_focus(gui)) {
+		return false;
+	} else if (!key_down(gui, g_key_bindings[action])) {
 		if (editor_last_action == action)
 			editor_last_action = ACTION_COUNT;
 		return false;
