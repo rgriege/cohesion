@@ -91,6 +91,113 @@ b32 editor_attempt_action(enum action action, gui_t *gui)
 	}
 }
 
+static
+b32 editor__wall_needed_at_tile(const struct map *map, s32 i, s32 j)
+{
+	b32 wall_needed = false;
+	for (s32 ii = max(i - 1, 0); ii < min(i + 2, map->dim.y); ++ii)
+		for (s32 jj = max(j - 1, 0); jj < min(j + 2, map->dim.x); ++jj)
+			wall_needed |=    !(ii == i && jj == j)
+			               && map->tiles[ii][jj].type != TILE_WALL
+			               && map->tiles[ii][jj].type != TILE_BLANK;
+	return wall_needed;
+}
+
+static
+void editor__cursor_move_to(s32 i, s32 j, u32 *num_moves_)
+{
+	u32 num_moves = 0;
+	while (editor_cursor.y < i) {
+		history_push(&editor_history, ACTION_MOVE_UP, 0);
+		++editor_cursor.y;
+		++num_moves;
+	}
+	while (editor_cursor.y > i) {
+		history_push(&editor_history, ACTION_MOVE_DOWN, 0);
+		--editor_cursor.y;
+		++num_moves;
+	}
+	while (editor_cursor.x > j) {
+		history_push(&editor_history, ACTION_MOVE_LEFT, 0);
+		--editor_cursor.x;
+		++num_moves;
+	}
+	while (editor_cursor.x < j) {
+		history_push(&editor_history, ACTION_MOVE_RIGHT, 0);
+		++editor_cursor.x;
+		++num_moves;
+	}
+	if (num_moves_)
+		*num_moves_ = num_moves;
+}
+
+static
+void editor__rotate_tile_cw(struct map *map)
+{
+	const s32 i = editor_cursor.y;
+	const s32 j = editor_cursor.x;
+	map->tiles[i][j].type = (map->tiles[i][j].type + 1) % (TILE_DOOR + 1);
+}
+
+static
+void editor__rotate_tile_ccw(struct map *map)
+{
+	const s32 i = editor_cursor.y;
+	const s32 j = editor_cursor.x;
+	map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
+}
+
+static
+void editor__cleanup_map_border(struct map *map)
+{
+	u32 change_cnt = 0;
+	const v2i orig_cursor = editor_cursor;
+	for (s32 i = 0; i < map->dim.y; ++i) {
+		for (s32 j = 0; j < map->dim.x; ++j) {
+			switch (map->tiles[i][j].type) {
+			case TILE_BLANK:
+				if (editor__wall_needed_at_tile(map, i, j)) {
+					u32 num_moves;
+					editor__cursor_move_to(i, j, &num_moves);
+					change_cnt += num_moves;
+
+					while (map->tiles[i][j].type != TILE_WALL) {
+						editor__rotate_tile_cw(map);
+						history_push(&editor_history, ACTION_ROTATE_CW, 0);
+						++change_cnt;
+					}
+				}
+			break;
+			case TILE_WALL:
+				if (!editor__wall_needed_at_tile(map, i, j)) {
+					u32 num_moves;
+					editor__cursor_move_to(i, j, &num_moves);
+					change_cnt += num_moves;
+
+					while (map->tiles[i][j].type != TILE_BLANK) {
+						editor__rotate_tile_ccw(map);
+						history_push(&editor_history, ACTION_ROTATE_CCW, 0);
+						++change_cnt;
+					}
+				}
+			break;
+			case TILE_HALL:
+			case TILE_PLAYER:
+			case TILE_CLONE:
+			case TILE_DOOR:
+			break;
+			}
+		}
+	}
+	{
+		u32 num_moves;
+		editor__cursor_move_to(orig_cursor.y, orig_cursor.x, &num_moves);
+		change_cnt += num_moves;
+	}
+	if (change_cnt)
+		history_push(&editor_history, ACTION_COUNT, change_cnt);
+}
+
 void editor_update(gui_t *gui, b32 *done)
 {
 	v2i screen, offset;
@@ -99,6 +206,9 @@ void editor_update(gui_t *gui, b32 *done)
 		s32 min_i = MAP_DIM_MAX, min_j = MAP_DIM_MAX;
 		s32 max_i = 0, max_j = 0;
 		struct map map_play;
+
+		editor__cleanup_map_border(editor_map);
+
 		for (s32 i = 0; i < editor_map->dim.y; ++i) {
 			for (s32 j = 0; j < editor_map->dim.x; ++j) {
 				if (editor_map->tiles[i][j].type != TILE_BLANK) {
@@ -138,44 +248,47 @@ void editor_update(gui_t *gui, b32 *done)
 		editor_cursor.x = min(editor_cursor.x + 1, MAP_DIM_MAX - 1);
 		history_push(&editor_history, ACTION_MOVE_RIGHT, 0);
 	} else if (editor_attempt_action(ACTION_ROTATE_CW, gui)) {
-		editor_map->tiles[editor_cursor.y][editor_cursor.x].type
-			= (editor_map->tiles[editor_cursor.y][editor_cursor.x].type + 1) % (TILE_DOOR + 1);
+		editor__rotate_tile_cw(editor_map);
 		history_push(&editor_history, ACTION_ROTATE_CW, 0);
 	} else if (editor_attempt_action(ACTION_ROTATE_CCW, gui)) {
-		editor_map->tiles[editor_cursor.y][editor_cursor.x].type
-			= (editor_map->tiles[editor_cursor.y][editor_cursor.x].type + TILE_DOOR) % (TILE_DOOR + 1);
+		editor__rotate_tile_ccw(editor_map);
 		history_push(&editor_history, ACTION_ROTATE_CCW, 0);
 	} else if (editor_attempt_action(ACTION_UNDO, gui)) {
 		enum action action;
 		u32 num_clones;
-		b32 stop = false;
-		while (!stop && history_pop(&editor_history, &action, &num_clones)) {
+		u32 remaining = 1;
+		b32 count_moves = false;
+		while (remaining && history_pop(&editor_history, &action, &num_clones)) {
 			switch (action) {
 			case ACTION_MOVE_UP:
 				--editor_cursor.y;
+				remaining -= count_moves;
 			break;
 			case ACTION_MOVE_DOWN:
 				++editor_cursor.y;
+				remaining -= count_moves;
 			break;
 			case ACTION_MOVE_LEFT:
 				++editor_cursor.x;
+				remaining -= count_moves;
 			break;
 			case ACTION_MOVE_RIGHT:
 				--editor_cursor.x;
+				remaining -= count_moves;
 			break;
 			case ACTION_ROTATE_CW:
-				editor_map->tiles[editor_cursor.y][editor_cursor.x].type
-					= (editor_map->tiles[editor_cursor.y][editor_cursor.x].type + TILE_DOOR) % (TILE_DOOR + 1);
-				stop = true;
+				editor__rotate_tile_ccw(editor_map);
+				--remaining;
 			break;
 			case ACTION_ROTATE_CCW:
-				editor_map->tiles[editor_cursor.y][editor_cursor.x].type
-					= (editor_map->tiles[editor_cursor.y][editor_cursor.x].type + 1) % (TILE_DOOR + 1);
-				stop = true;
+				editor__rotate_tile_cw(editor_map);
+				--remaining;
 			break;
 			case ACTION_UNDO:
 			case ACTION_RESET:
 			case ACTION_COUNT:
+				remaining = num_clones;
+				count_moves = true;
 			break;
 			}
 		}
