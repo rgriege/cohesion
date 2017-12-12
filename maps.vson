@@ -1,4 +1,4 @@
-maps: 25
+maps: 26
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -73,6 +73,16 @@ height: 4
 1114111
 1322251
 1111111
+desc: corner rotation 2 (extended)
+tip: 
+width: 9
+height: 6
+011111110
+012121210
+012222210
+112111211
+134215221
+111111111
 desc: corner rotation 2 (T-shape)
 tip: 
 width: 10
