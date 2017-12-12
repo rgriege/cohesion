@@ -3,7 +3,7 @@ INC = /usr/include
 CCFLAGS = -std=gnu99 -g -g3 -DDEBUG -Darray_size_t=u32 -Wall -Werror -Wno-missing-braces -I. -I$(INC)/ -I$(INC)/SDL2/
 # CCFLAGS = -std=gnu99 -DNDEBUG -Darray_size_t=u32 -Wall -Werror -Wno-missing-braces -I. -I$(INC)/ -I$(INC)/SDL2/
 LFLAGS = -lGL -lGLEW -lm -lSDL2 -lSDL2_mixer -ldl
-SOURCES := main.c audio.h audio_stub.h action.h config.h constants.h disk.h editor.h history.h key.h play.h settings.h
+SOURCES := main.c audio.h audio_stub.h action.h config.h constants.h disk.h editor.h history.h key.h settings.h types.h
 SOUNDS_DESKTOP := $(wildcard *.aiff)
 SOUNDS_WEB = $(subst aiff,mp3,$(SOUNDS_DESKTOP))
 RESOURCES_CORE := $(wildcard *.png) maps.vson Roboto.ttf
