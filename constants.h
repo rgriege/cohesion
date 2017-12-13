@@ -11,3 +11,6 @@ const color_t g_tile_fills[] = {
 	gi_lightblue,
 	gi_yellow,
 };
+
+const gui_key_t key_next = KB_N;
+const gui_key_t key_prev = KB_P;

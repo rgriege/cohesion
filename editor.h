@@ -1,6 +1,6 @@
 void editor_init(void);
-void editor_edit_map(struct map *map);
-void editor_update(gui_t *gui, b32 *done);
+void editor_edit_map(array(struct map) *maps, u32 idx);
+void editor_update(gui_t *gui, u32 *map_to_play);
 
 
 
@@ -8,7 +8,8 @@ void editor_update(gui_t *gui, b32 *done);
 
 #define EDITOR_REPEAT_INTERVAL 150
 
-struct map *editor_map;
+u32 editor_map_idx;
+array(struct map) *editor_maps;
 struct map editor_map_orig;
 struct history editor_history;
 enum action editor_last_action;
@@ -17,7 +18,8 @@ v2i editor_cursor;
 
 void editor_init(void)
 {
-	editor_map = NULL;
+	editor_maps = NULL;
+	editor_map_idx = ~0;
 	editor_last_action = ACTION_COUNT;
 	history_clear(&editor_history);
 }
@@ -27,6 +29,8 @@ void editor__init_map(struct map map)
 {
 	static const v2i dim_max = { MAP_DIM_MAX, MAP_DIM_MAX };
 	const v2i offset = v2i_scale_inv(v2i_sub(dim_max, map.dim), 2);
+	struct map *editor_map = &(*editor_maps)[editor_map_idx];
+
 	editor_map->dim = dim_max;
 
 	for (s32 i = 0; i < offset.y; ++i)
@@ -47,12 +51,13 @@ void editor__init_map(struct map map)
 			editor_map->tiles[i][j].type = TILE_BLANK;
 }
 
-void editor_edit_map(struct map *map_)
+void editor_edit_map(array(struct map) *maps, u32 idx)
 {
-	const struct map map = *map_;
-	const b32 changed = editor_map != map_;
+	const b32 changed = editor_map_idx != idx;
+	const struct map map = (*maps)[idx];
 
-	editor_map = map_;
+	editor_maps = maps;
+	editor_map_idx = idx;
 
 	editor__init_map(map);
 
@@ -149,11 +154,38 @@ void editor__rotate_tile_ccw(struct map *map)
 	map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
 }
 
+v2i editor__map_dim(const struct map *map, v2i *min)
+{
+	s32 min_i = MAP_DIM_MAX, min_j = MAP_DIM_MAX;
+	s32 max_i = 0, max_j = 0;
+
+	for (s32 i = 0; i < map->dim.y; ++i) {
+		for (s32 j = 0; j < map->dim.x; ++j) {
+			if (map->tiles[i][j].type != TILE_BLANK) {
+				min_i = min(min_i, i);
+				min_j = min(min_j, j);
+				max_i = max(max_i, i);
+				max_j = max(max_j, j);
+			}
+		}
+	}
+
+	if (min) {
+		min->x = min_j;
+		min->y = min_i;
+	}
+	return (v2i){
+		.x = max(max_j - min_j + 1, 0),
+		.y = max(max_i - min_i + 1, 0),
+	};
+}
+
 static
 void editor__cleanup_map_border(struct map *map)
 {
-	u32 change_cnt = 0;
 	const v2i orig_cursor = editor_cursor;
+	u32 change_cnt = 0;
+
 	for (s32 i = 0; i < map->dim.y; ++i) {
 		for (s32 j = 0; j < map->dim.x; ++j) {
 			switch (map->tiles[i][j].type) {
@@ -191,47 +223,62 @@ void editor__cleanup_map_border(struct map *map)
 			}
 		}
 	}
+
 	{
 		u32 num_moves;
 		editor__cursor_move_to(orig_cursor.y, orig_cursor.x, &num_moves);
 		change_cnt += num_moves;
 	}
+
 	if (change_cnt)
 		history_push(&editor_history, ACTION_COUNT, change_cnt);
 }
 
-void editor_update(gui_t *gui, b32 *done)
+static
+void editor__restore_map(void)
 {
-	v2i screen, offset;
+	struct map *editor_map = &(*editor_maps)[editor_map_idx];
+	struct map map_play;
+	v2i min;
 
-	if (key_pressed(gui, KB_F1) && !is_key_bound(KB_F1)) {
-		s32 min_i = MAP_DIM_MAX, min_j = MAP_DIM_MAX;
-		s32 max_i = 0, max_j = 0;
-		struct map map_play;
+	editor__cleanup_map_border(editor_map);
 
-		editor__cleanup_map_border(editor_map);
+	map_play.dim = editor__map_dim(editor_map, &min);
 
-		for (s32 i = 0; i < editor_map->dim.y; ++i) {
-			for (s32 j = 0; j < editor_map->dim.x; ++j) {
-				if (editor_map->tiles[i][j].type != TILE_BLANK) {
-					min_i = min(min_i, i);
-					min_j = min(min_j, j);
-					max_i = max(max_i, i);
-					max_j = max(max_j, j);
-				}
-			}
-		}
-		map_play.dim.x = max_j - min_j + 1;
-		map_play.dim.y = max_i - min_i + 1;
+	if (!v2i_equal(map_play.dim, g_v2i_zero)) {
 		for (s32 i = 0; i < map_play.dim.y; ++i)
 			for (s32 j = 0; j < map_play.dim.x; ++j)
-				map_play.tiles[i][j] = editor_map->tiles[i + min_i][j + min_j];
+				map_play.tiles[i][j] = editor_map->tiles[i + min.y][j + min.x];
 
 		editor_map->dim = map_play.dim;
 		memcpy(editor_map->tiles, map_play.tiles, sizeof(map_play.tiles));
-		*done = true;
 	} else {
-		*done = false;
+		editor_map->dim = g_v2i_zero;
+	}
+}
+
+static
+b32 editor__map_is_blank(const struct map *map)
+{
+	for (s32 i = 0; i < map->dim.y; ++i)
+		for (s32 j = 0; j < map->dim.x; ++j)
+			if (map->tiles[i][j].type != TILE_BLANK)
+				return false;
+	return true;
+}
+
+void editor_update(gui_t *gui, u32 *map_to_play)
+{
+	struct map *editor_map = &(*editor_maps)[editor_map_idx];
+	v2i screen, offset;
+
+	if (   key_pressed(gui, KB_F1)
+	    && !is_key_bound(KB_F1)
+	    && !editor__map_is_blank(editor_map)) {
+		editor__restore_map();
+		*map_to_play = editor_map_idx;
+	} else {
+		*map_to_play = ~0;
 	}
 
 	gui_dim(gui, &screen.x, &screen.y);
@@ -297,6 +344,42 @@ void editor_update(gui_t *gui, b32 *done)
 	} else if (editor_attempt_action(ACTION_RESET, gui)) {
 		editor__init_map(editor_map_orig);
 		history_clear(&editor_history);
+	} else if (key_pressed(gui, key_next)) {
+		editor__restore_map();
+		if (key_mod(gui, KBM_CTRL)) {
+			const struct map map_copy = *editor_map;
+			++editor_map_idx;
+			array_insert(*editor_maps, editor_map_idx, map_copy);
+		} else if (editor_map_idx + 1 == array_sz(*editor_maps)) {
+			if (editor__map_is_blank(editor_map)) {
+				array_pop(*editor_maps);
+				editor_map_idx = 0;
+			} else {
+				const struct map map_empty = { 0 };
+				array_append(*editor_maps, map_empty);
+				++editor_map_idx;
+			}
+		} else {
+			++editor_map_idx;
+		}
+		history_clear(&editor_history);
+		editor_map = &(*editor_maps)[editor_map_idx];
+		editor__init_map((*editor_maps)[editor_map_idx]);
+	} else if (key_pressed(gui, key_prev)) {
+		editor__restore_map();
+		if (editor_map_idx == 0) {
+			const struct map map_empty = { 0 };
+			editor_map_idx = array_sz(*editor_maps);
+			array_append(*editor_maps, map_empty);
+		} else {
+			if (   editor_map_idx + 1 == array_sz(*editor_maps)
+			    && editor__map_is_blank(editor_map))
+					array_pop(*editor_maps);
+			--editor_map_idx;
+		}
+		history_clear(&editor_history);
+		editor_map = &(*editor_maps)[editor_map_idx];
+		editor__init_map((*editor_maps)[editor_map_idx]);
 	}
 
 	gui_npt(gui, 2, screen.y - TILE_SIZE + 2, screen.x - 4, TILE_SIZE - 4,

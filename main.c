@@ -337,11 +337,12 @@ void frame(void)
 		show_settings(gui, &settings_panel);
 
 	if (in_editor) {
-		b32 done;
-		editor_update(gui, &done);
-		if (done) {
+		u32 level_to_play;
+		editor_update(gui, &level_to_play);
+		if (level_to_play < array_sz(maps)) {
 			save_maps(maps);
 			history_clear(&play_history);
+			level_idx = level_to_play;
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
 			in_editor = false;
@@ -665,12 +666,12 @@ void play(void)
 			}
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
-		} else if (key_pressed(gui, KB_N)) {
+		} else if (key_pressed(gui, key_next)) {
 			history_clear(&play_history);
 			level_idx = (level_idx + 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
 			player_init(&player, &level);
-		} else if (key_pressed(gui, KB_P)) {
+		} else if (key_pressed(gui, key_prev)) {
 			history_clear(&play_history);
 			level_idx = (level_idx + array_sz(maps) - 1) % array_sz(maps);
 			level_init(&level, &maps[level_idx]);
@@ -782,7 +783,7 @@ void play(void)
 	}
 
 	if (key_pressed(gui, KB_F1) && !is_key_bound(KB_F1)) {
-		editor_edit_map(&maps[level_idx]);
+		editor_edit_map(&maps, level_idx);
 		in_editor = true;
 	}
 }
