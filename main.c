@@ -541,6 +541,12 @@ void play(void)
 			render_player(gui, offset, v2i_scale(level.clones[i], TILE_SIZE),
 			              g_tile_fills[TILE_CLONE]);
 
+	if (!level.complete) {
+		render_player(gui, offset, v2f_to_v2i(player.pos), g_tile_fills[TILE_PLAYER]);
+		for (u32 i = 0; i < player.num_clones; ++i)
+			render_player(gui, offset, v2i_add(v2f_to_v2i(player.pos), v2i_scale(player.clones[i], TILE_SIZE)), g_tile_fills[TILE_CLONE]);
+	}
+
 	switch (player.dir) {
 	case DIR_NONE:
 		if (   key_down(gui, g_key_bindings[ACTION_MOVE_UP])
@@ -746,12 +752,6 @@ void play(void)
 			}
 		}
 	break;
-	}
-
-	if (!level.complete) {
-		render_player(gui, offset, v2f_to_v2i(player.pos), g_tile_fills[TILE_PLAYER]);
-		for (u32 i = 0; i < player.num_clones; ++i)
-			render_player(gui, offset, v2i_add(v2f_to_v2i(player.pos), v2i_scale(player.clones[i], TILE_SIZE)), g_tile_fills[TILE_CLONE]);
 	}
 
 	if (   !level.complete
