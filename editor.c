@@ -11,7 +11,6 @@
 static u32 editor_map_idx;
 static array(struct map) *editor_maps;
 static struct map editor_map_orig;
-static v2i editor_map_prev_dim;
 static struct history editor_history;
 static v2i editor_cursor;
 
@@ -56,7 +55,6 @@ void editor_edit_map(array(struct map) *maps, u32 idx)
 
 	editor_maps = maps;
 	editor_map_idx = idx;
-	editor_map_prev_dim = map.dim;
 
 	editor__init_map(map);
 
@@ -126,6 +124,7 @@ void editor__rotate_tile_ccw(struct map *map)
 	map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
 }
 
+static
 v2i editor__map_dim(const struct map *map, v2i *min)
 {
 	s32 min_i = MAP_DIM_MAX, min_j = MAP_DIM_MAX;
@@ -207,26 +206,30 @@ void editor__cleanup_map_border(struct map *map)
 }
 
 static
-void editor__restore_map(void)
+void editor__shrink_map(struct map *map)
 {
-	struct map *editor_map = &(*editor_maps)[editor_map_idx];
 	struct map map_play;
 	v2i min;
 
-	editor__cleanup_map_border(editor_map);
-
-	map_play.dim = editor__map_dim(editor_map, &min);
+	map_play.dim = editor__map_dim(map, &min);
 
 	if (!v2i_equal(map_play.dim, g_v2i_zero)) {
 		for (s32 i = 0; i < map_play.dim.y; ++i)
 			for (s32 j = 0; j < map_play.dim.x; ++j)
-				map_play.tiles[i][j] = editor_map->tiles[i + min.y][j + min.x];
+				map_play.tiles[i][j] = map->tiles[i + min.y][j + min.x];
 
-		editor_map->dim = map_play.dim;
-		memcpy(editor_map->tiles, map_play.tiles, sizeof(map_play.tiles));
+		map->dim = map_play.dim;
+		memcpy(map->tiles, map_play.tiles, sizeof(map_play.tiles));
 	} else {
-		editor_map->dim = g_v2i_zero;
+		map->dim = g_v2i_zero;
 	}
+}
+
+static
+void editor__restore_map(struct map *map)
+{
+	editor__cleanup_map_border(map);
+	editor__shrink_map(map);
 }
 
 static
@@ -247,17 +250,18 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 	if (   key_pressed(gui, KB_F1)
 	    && !is_key_bound(KB_F1)
 	    && !editor__map_is_blank(editor_map)) {
-		editor__restore_map();
+		editor__cleanup_map_border(editor_map);
 
 		{
 			static const v2i max_dim = { MAP_DIM_MAX, MAP_DIM_MAX };
-			const v2i old_dim = editor_map_prev_dim;
-			const v2i new_dim = editor__map_dim(editor_map, NULL);
-			const v2i old_offset = v2i_scale_inv(v2i_sub(max_dim, old_dim), 2);
-			const v2i new_offset = v2i_scale_inv(v2i_sub(max_dim, new_dim), 2);
+			v2i old_offset;
+			const v2i dim = editor__map_dim(editor_map, &old_offset);
+			const v2i new_offset = v2i_scale_inv(v2i_sub(max_dim, dim), 2);
 			const v2i delta = v2i_sub(new_offset, old_offset);
 			v2i_add_eq(&editor_cursor, delta);
 		}
+
+		editor__shrink_map(editor_map);
 
 		*map_to_play = editor_map_idx;
 	} else {
@@ -328,7 +332,7 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 		editor__init_map(editor_map_orig);
 		history_clear(&editor_history);
 	} else if (key_pressed(gui, key_next)) {
-		editor__restore_map();
+		editor__restore_map(editor_map);
 		if (key_mod(gui, KBM_CTRL)) {
 			const struct map map_copy = *editor_map;
 			++editor_map_idx;
@@ -349,7 +353,7 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 		editor_map = &(*editor_maps)[editor_map_idx];
 		editor__init_map((*editor_maps)[editor_map_idx]);
 	} else if (key_pressed(gui, key_prev)) {
-		editor__restore_map();
+		editor__restore_map(editor_map);
 		if (editor_map_idx == 0) {
 			const struct map map_empty = { 0 };
 			editor_map_idx = array_sz(*editor_maps);
