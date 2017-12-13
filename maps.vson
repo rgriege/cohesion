@@ -1,4 +1,4 @@
-maps: 27
+maps: 30
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -205,16 +205,46 @@ height: 9
 122424221
 122242251
 111111111
-desc: stacks
+desc: stacks 1
 tip: 
 width: 9
 height: 6
-111111110
-122224411
+011111110
+112224411
 122224451
-122222251
-132224411
-111111110
+132222251
+112224411
+011111110
+desc: stacks 2
+tip: 
+width: 9
+height: 6
+011111110
+112224410
+122224411
+132222251
+112224411
+011111110
+desc: stacks 3
+tip: 
+width: 9
+height: 6
+011111110
+112224411
+122224451
+132222111
+112224410
+011111110
+desc: stacks 4
+tip: 
+width: 9
+height: 6
+011111111
+112224451
+122224411
+132222210
+112224410
+011111110
 desc: false fork 1 (hook)
 tip: 
 width: 12
