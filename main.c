@@ -1,19 +1,12 @@
 #include <time.h>
-
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "config.h"
-
 #define VIOLET_IMPLEMENTATION
 #include "violet/all.h"
-
 #include "key.h"
-
-#ifdef AUDIO_ENABLED
-#include <SDL_mixer.h>
 #include "audio.h"
-#else
-#include "audio_stub.h"
-#endif
-
 #include "types.h"
 #include "constants.h"
 #include "action.h"
@@ -21,10 +14,6 @@
 #include "settings.h"
 #include "disk.h"
 #include "editor.h"
-
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
 
 static
 void level_init(struct level *level, const struct map *map)
@@ -573,7 +562,7 @@ void play(void)
 			player.dir = DIR_RIGHT;
 			++player.tile.x;
 			sound_play(&sound_slide);
-		} else if (key_pressed(gui, g_key_bindings[ACTION_ROTATE_CCW])) {
+		} else if (action_attempt(ACTION_ROTATE_CCW, gui)) {
 			if (player_can_rotate(&level, &player, false)) {
 				u32 num_clones_attached;
 				for (u32 i = 0; i < player.num_clones; ++i) {
@@ -589,7 +578,7 @@ void play(void)
 			} else {
 				sound_play(&sound_error);
 			}
-		} else if (key_pressed(gui, g_key_bindings[ACTION_ROTATE_CW])) {
+		} else if (action_attempt(ACTION_ROTATE_CW, gui)) {
 			if (player_can_rotate(&level, &player, true)) {
 				u32 num_clones_attached;
 				for (u32 i = 0; i < player.num_clones; ++i) {
@@ -605,7 +594,7 @@ void play(void)
 			} else {
 				sound_play(&sound_error);
 			}
-		} else if (   key_pressed(gui, g_key_bindings[ACTION_UNDO])
+		} else if (   action_attempt(ACTION_UNDO, gui)
 		           && settings_panel.hidden) {
 			enum action action;
 			u32 num_clones;
