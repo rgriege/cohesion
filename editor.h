@@ -11,6 +11,7 @@ void editor_update(gui_t *gui, u32 *map_to_play);
 u32 editor_map_idx;
 array(struct map) *editor_maps;
 struct map editor_map_orig;
+v2i editor_map_prev_dim;
 struct history editor_history;
 enum action editor_last_action;
 u32 editor_repeat_timer;
@@ -58,6 +59,7 @@ void editor_edit_map(array(struct map) *maps, u32 idx)
 
 	editor_maps = maps;
 	editor_map_idx = idx;
+	editor_map_prev_dim = map.dim;
 
 	editor__init_map(map);
 
@@ -276,6 +278,17 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 	    && !is_key_bound(KB_F1)
 	    && !editor__map_is_blank(editor_map)) {
 		editor__restore_map();
+
+		{
+			static const v2i max_dim = { MAP_DIM_MAX, MAP_DIM_MAX };
+			const v2i old_dim = editor_map_prev_dim;
+			const v2i new_dim = editor__map_dim(editor_map, NULL);
+			const v2i old_offset = v2i_scale_inv(v2i_sub(max_dim, old_dim), 2);
+			const v2i new_offset = v2i_scale_inv(v2i_sub(max_dim, new_dim), 2);
+			const v2i delta = v2i_sub(new_offset, old_offset);
+			v2i_add_eq(&editor_cursor, delta);
+		}
+
 		*map_to_play = editor_map_idx;
 	} else {
 		*map_to_play = ~0;
