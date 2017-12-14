@@ -469,7 +469,7 @@ void play(void)
 				}
 #ifdef SHOW_TRAVELLED
 				if (level.map.tiles[i][j].travelled)
-					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 4,
+					gui_circ(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE / 8,
 					         g_red, g_nocolor);
 #endif
 			}
