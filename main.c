@@ -212,7 +212,7 @@ b32 quit = false;
 u32 level_idx = 0;
 struct level level;
 struct player player;
-u32 frame_milli = 0, time_until_next_door_fx = 0;
+u32 time_until_next_door_fx = 0;
 struct music music;
 struct sound sound_error, sound_slide, sound_swipe, sound_success;
 array(struct map) maps;
@@ -225,7 +225,7 @@ struct history play_history;
 
 
 void frame(void);
-void play(void);
+void play(u32 frame_milli);
 
 int main(int argc, char *const argv[]) {
 	log_add_std(LOG_STDOUT);
@@ -287,10 +287,13 @@ int main(int argc, char *const argv[]) {
 	return 0;
 #else
 	while (!quit) {
+		u32 frame_milli, fps;
 		frame();
 		frame_milli = time_diff_milli(gui_frame_start(gui), time_current());
-		if (frame_milli < (u32)(1000.f / FPS_CAP))
-			time_sleep_milli((u32)(1000.f / FPS_CAP) - frame_milli);
+		fps =   in_editor && time_diff_milli(gui_last_input_time(gui), time_current())
+			    > IDLE_TIMER_MILLI ? FPS_IDLE : FPS_CAP;
+		if (frame_milli < (u32)(1000.f / fps))
+			time_sleep_milli((u32)(1000.f / fps) - frame_milli);
 	}
 #endif
 
@@ -312,6 +315,8 @@ err_audio:
 
 void frame(void)
 {
+	u32 frame_milli;
+
 	if (!gui_begin_frame(gui)) {
 		quit = true;
 		return;
@@ -337,7 +342,7 @@ void frame(void)
 			in_editor = false;
 		}
 	} else {
-		play();
+		play(frame_milli);
 	}
 
 	quit = key_down(gui, KB_ESCAPE);
@@ -345,7 +350,7 @@ void frame(void)
 	gui_end_frame(gui);
 }
 
-void play(void)
+void play(u32 frame_milli)
 {
 #ifdef DEBUG
 	if (key_pressed(gui, KB_G))
