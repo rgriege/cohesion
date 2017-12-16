@@ -4,6 +4,7 @@
 #define TILE_SIZE 20
 #define WALK_SPEED 80
 #define CLONE_CNT_MAX 32
+#define PLAYER_CNT_MAX 2
 #define TILE_BORDER_DIM 1
 #define FPS_CAP 30
 // #define SHOW_TRAVELLED

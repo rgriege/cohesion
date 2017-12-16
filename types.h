@@ -21,14 +21,6 @@ struct map {
 	struct tile tiles[MAP_DIM_MAX][MAP_DIM_MAX];
 };
 
-struct level {
-	struct map map;
-	v2i player_start;
-	v2i clones[CLONE_CNT_MAX];
-	u32 num_clones;
-	b32 complete;
-};
-
 enum dir {
 	DIR_NONE,
 	DIR_UP,
@@ -43,6 +35,15 @@ struct player {
 	enum dir dir;
 	v2i clones[CLONE_CNT_MAX];
 	u32 num_clones;
+};
+
+struct level {
+	struct map map;
+	struct player players[PLAYER_CNT_MAX];
+	u32 num_players;
+	v2i clones[CLONE_CNT_MAX];
+	u32 num_clones;
+	b32 complete;
 };
 
 struct effect {
