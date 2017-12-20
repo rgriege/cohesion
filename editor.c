@@ -1,24 +1,25 @@
 #include "config.h"
 #include "violet/all.h"
 #include "key.h"
+#include "action.h"
 #include "types.h"
 #include "constants.h"
-#include "action.h"
 #include "history.h"
 #include "settings.h"
+#include "player.h"
 #include "editor.h"
 
 static u32 editor_map_idx;
 static array(struct map) *editor_maps;
 static struct map editor_map_orig;
-static struct history editor_history;
 static v2i editor_cursor;
+static struct player editor_player;
 
 void editor_init(void)
 {
 	editor_maps = NULL;
 	editor_map_idx = ~0;
-	history_clear(&editor_history);
+	player_init(&editor_player, 0);
 }
 
 static
@@ -64,7 +65,7 @@ void editor_edit_map(array(struct map) *maps, u32 idx)
 		editor_cursor.x = MAP_DIM_MAX / 2 - 1;
 		editor_cursor.y = MAP_DIM_MAX / 2 - 1;
 
-		history_clear(&editor_history);
+		player_init(&editor_player, 0);
 	}
 }
 
@@ -85,22 +86,22 @@ void editor__cursor_move_to(s32 i, s32 j, u32 *num_moves_)
 {
 	u32 num_moves = 0;
 	while (editor_cursor.y < i) {
-		history_push(&editor_history, ACTION_MOVE_UP, 0);
+		history_push(&editor_player.history, ACTION_MOVE_UP, 0);
 		++editor_cursor.y;
 		++num_moves;
 	}
 	while (editor_cursor.y > i) {
-		history_push(&editor_history, ACTION_MOVE_DOWN, 0);
+		history_push(&editor_player.history, ACTION_MOVE_DOWN, 0);
 		--editor_cursor.y;
 		++num_moves;
 	}
 	while (editor_cursor.x > j) {
-		history_push(&editor_history, ACTION_MOVE_LEFT, 0);
+		history_push(&editor_player.history, ACTION_MOVE_LEFT, 0);
 		--editor_cursor.x;
 		++num_moves;
 	}
 	while (editor_cursor.x < j) {
-		history_push(&editor_history, ACTION_MOVE_RIGHT, 0);
+		history_push(&editor_player.history, ACTION_MOVE_RIGHT, 0);
 		++editor_cursor.x;
 		++num_moves;
 	}
@@ -168,7 +169,7 @@ void editor__cleanup_map_border(struct map *map)
 
 					while (map->tiles[i][j].type != TILE_WALL) {
 						editor__rotate_tile_cw(map);
-						history_push(&editor_history, ACTION_ROTATE_CW, 0);
+						history_push(&editor_player.history, ACTION_ROTATE_CW, 0);
 						++change_cnt;
 					}
 				}
@@ -181,13 +182,13 @@ void editor__cleanup_map_border(struct map *map)
 
 					while (map->tiles[i][j].type != TILE_BLANK) {
 						editor__rotate_tile_ccw(map);
-						history_push(&editor_history, ACTION_ROTATE_CCW, 0);
+						history_push(&editor_player.history, ACTION_ROTATE_CCW, 0);
 						++change_cnt;
 					}
 				}
 			break;
 			case TILE_HALL:
-			case TILE_PLAYER:
+			case TILE_ACTOR:
 			case TILE_CLONE:
 			case TILE_DOOR:
 			break;
@@ -202,7 +203,7 @@ void editor__cleanup_map_border(struct map *map)
 	}
 
 	if (change_cnt)
-		history_push(&editor_history, ACTION_COUNT, change_cnt);
+		history_push(&editor_player.history, ACTION_COUNT, change_cnt);
 }
 
 static
@@ -271,30 +272,30 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 	gui_dim(gui, &screen.x, &screen.y);
 	offset = v2i_scale_inv(v2i_sub(screen, v2i_scale(editor_map->dim, TILE_SIZE)), 2);
 
-	if (action_attempt(ACTION_MOVE_UP, gui)) {
+	if (player_desires_action(&editor_player, ACTION_MOVE_UP, gui)) {
 		editor_cursor.y = min(editor_cursor.y + 1, MAP_DIM_MAX - 1);
-		history_push(&editor_history, ACTION_MOVE_UP, 0);
-	} else if (action_attempt(ACTION_MOVE_DOWN, gui)) {
+		history_push(&editor_player.history, ACTION_MOVE_UP, 0);
+	} else if (player_desires_action(&editor_player, ACTION_MOVE_DOWN, gui)) {
 		editor_cursor.y = max(editor_cursor.y - 1, 0);
-		history_push(&editor_history, ACTION_MOVE_DOWN, 0);
-	} else if (action_attempt(ACTION_MOVE_LEFT, gui)) {
+		history_push(&editor_player.history, ACTION_MOVE_DOWN, 0);
+	} else if (player_desires_action(&editor_player, ACTION_MOVE_LEFT, gui)) {
 		editor_cursor.x = max(editor_cursor.x - 1, 0);
-		history_push(&editor_history, ACTION_MOVE_LEFT, 0);
-	} else if (action_attempt(ACTION_MOVE_RIGHT, gui)) {
+		history_push(&editor_player.history, ACTION_MOVE_LEFT, 0);
+	} else if (player_desires_action(&editor_player, ACTION_MOVE_RIGHT, gui)) {
 		editor_cursor.x = min(editor_cursor.x + 1, MAP_DIM_MAX - 1);
-		history_push(&editor_history, ACTION_MOVE_RIGHT, 0);
-	} else if (action_attempt(ACTION_ROTATE_CW, gui)) {
+		history_push(&editor_player.history, ACTION_MOVE_RIGHT, 0);
+	} else if (player_desires_action(&editor_player, ACTION_ROTATE_CW, gui)) {
 		editor__rotate_tile_cw(editor_map);
-		history_push(&editor_history, ACTION_ROTATE_CW, 0);
-	} else if (action_attempt(ACTION_ROTATE_CCW, gui)) {
+		history_push(&editor_player.history, ACTION_ROTATE_CW, 0);
+	} else if (player_desires_action(&editor_player, ACTION_ROTATE_CCW, gui)) {
 		editor__rotate_tile_ccw(editor_map);
-		history_push(&editor_history, ACTION_ROTATE_CCW, 0);
-	} else if (action_attempt(ACTION_UNDO, gui)) {
+		history_push(&editor_player.history, ACTION_ROTATE_CCW, 0);
+	} else if (player_desires_action(&editor_player, ACTION_UNDO, gui)) {
 		enum action action;
 		u32 num_clones;
 		u32 remaining = 1;
 		b32 count_moves = false;
-		while (remaining && history_pop(&editor_history, &action, &num_clones)) {
+		while (remaining && history_pop(&editor_player.history, &action, &num_clones)) {
 			switch (action) {
 			case ACTION_MOVE_UP:
 				--editor_cursor.y;
@@ -328,9 +329,9 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 			break;
 			}
 		}
-	} else if (action_attempt(ACTION_RESET, gui)) {
+	} else if (player_desires_action(&editor_player, ACTION_RESET, gui)) {
 		editor__init_map(editor_map_orig);
-		history_clear(&editor_history);
+		history_clear(&editor_player.history);
 	} else if (key_pressed(gui, key_next)) {
 		editor__restore_map(editor_map);
 		if (key_mod(gui, KBM_CTRL)) {
@@ -349,7 +350,7 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 		} else {
 			++editor_map_idx;
 		}
-		history_clear(&editor_history);
+		history_clear(&editor_player.history);
 		editor_map = &(*editor_maps)[editor_map_idx];
 		editor__init_map((*editor_maps)[editor_map_idx]);
 	} else if (key_pressed(gui, key_prev)) {
@@ -364,7 +365,7 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 					array_pop(*editor_maps);
 			--editor_map_idx;
 		}
-		history_clear(&editor_history);
+		history_clear(&editor_player.history);
 		editor_map = &(*editor_maps)[editor_map_idx];
 		editor__init_map((*editor_maps)[editor_map_idx]);
 	}
@@ -386,6 +387,7 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 	gui_npt(gui, 2, 2, screen.x - 4, TILE_SIZE - 4,
 	        editor_map->tip, MAP_TIP_MAX - 1, "tip", 0);
 
-	gui_rect(gui, offset.x + editor_cursor.x * TILE_SIZE, offset.y + editor_cursor.y * TILE_SIZE,
+	gui_rect(gui, offset.x + editor_cursor.x * TILE_SIZE,
+	         offset.y + editor_cursor.y * TILE_SIZE,
 	         TILE_SIZE, TILE_SIZE, g_nocolor, g_white);
 }

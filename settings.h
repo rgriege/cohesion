@@ -2,7 +2,7 @@
  * Key bindings & audio settings
  */
 
-gui_key_t g_key_bindings[ACTION_COUNT];
+gui_key_t g_key_bindings[PLAYER_CNT_MAX][ACTION_COUNT];
 
 void load_settings(void);
 void save_settings(void);

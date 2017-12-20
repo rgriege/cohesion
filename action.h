@@ -12,4 +12,4 @@ enum action
 };
 
 const char *action_to_string(enum action action);
-b32         action_attempt(enum action action, gui_t *gui);
+b32         action_is_solo(enum action action);

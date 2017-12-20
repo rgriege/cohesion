@@ -8,6 +8,7 @@ height: 5
 1211121
 1231521
 1111111
+0
 desc: first clone
 tip: blue CLONES will latch on to you
 width: 7
@@ -15,6 +16,7 @@ height: 3
 1111111
 1432251
 1111111
+0
 desc: second clone
 tip: 
 width: 7
@@ -23,6 +25,7 @@ height: 4
 1114221
 1322251
 1111111
+0
 desc: force clone to move through door
 tip: blue CLONES cannot use the yellow DOOR
 width: 5
@@ -32,6 +35,7 @@ height: 5
 11451
 13221
 11111
+0
 desc: avoid the clones
 tip: if you get stuck, press C or the reset button below
 width: 9
@@ -41,6 +45,7 @@ height: 5
 122222421
 132422251
 111111111
+0
 desc: ccw
 tip: press Q to rotate counter-clockwise
 width: 7
@@ -49,6 +54,7 @@ height: 4
 1242211
 1232251
 1111111
+0
 desc: cw
 tip: press E to rotate clockwise
 width: 7
@@ -57,6 +63,7 @@ height: 4
 1124221
 1522231
 1111111
+0
 desc: clones cannot use the door w/ rotation
 tip: 
 width: 6
@@ -65,6 +72,7 @@ height: 4
 111221
 132451
 111111
+0
 desc: corner rotation 1 (intro)
 tip: 
 width: 7
@@ -73,6 +81,7 @@ height: 4
 1114111
 1322251
 1111111
+0
 desc: corner rotation 2 (extended)
 tip: 
 width: 9
@@ -83,6 +92,7 @@ height: 6
 112111211
 134215221
 111111111
+0
 desc: corner rotation 2 (T-shape)
 tip: 
 width: 10
@@ -95,6 +105,7 @@ height: 8
 1122222221
 1252222411
 1111111110
+0
 desc: corner rotation 3 (2-L-shape, P-C-C)
 tip: 
 width: 11
@@ -106,6 +117,7 @@ height: 7
 00000112221
 00000011251
 00000001111
+0
 desc: corner rotation 4 (2-L-shape, tighter)
 tip: 
 width: 8
@@ -116,6 +128,7 @@ height: 6
 11114251
 00011211
 00001110
+0
 desc: corner rotation 5 (2-L-shape, P-C-C)
 tip: 
 width: 8
@@ -126,6 +139,7 @@ height: 6
 11114221
 00011211
 00001110
+0
 desc: connect four 1
 tip: 
 width: 6
@@ -137,6 +151,7 @@ height: 7
 122241
 111151
 000111
+0
 desc: connect four 2 (shrunk)
 tip: 
 width: 6
@@ -148,6 +163,7 @@ height: 7
 122241
 111151
 000111
+0
 desc: connect four 3 (extra)
 tip: 
 width: 6
@@ -159,6 +175,7 @@ height: 7
 142241
 111151
 000111
+0
 desc: clump 1
 tip: 
 width: 9
@@ -169,6 +186,7 @@ height: 6
 142421111
 124221000
 111111000
+0
 desc: clump 2
 tip: 
 width: 9
@@ -179,6 +197,7 @@ height: 6
 142422111
 124241100
 111111000
+0
 desc: clump 3
 tip: 
 width: 9
@@ -192,6 +211,7 @@ height: 9
 122422221
 122242221
 111111111
+0
 desc: diamond
 tip: 
 width: 9
@@ -205,6 +225,7 @@ height: 9
 122424221
 122242251
 111111111
+0
 desc: stacks 1
 tip: 
 width: 9
@@ -215,6 +236,7 @@ height: 6
 132222211
 122214410
 111111110
+0
 desc: stacks 2
 tip: 
 width: 9
@@ -225,6 +247,7 @@ height: 6
 132222211
 112224410
 011111110
+0
 desc: stacks 3
 tip: 
 width: 9
@@ -235,6 +258,7 @@ height: 6
 132222251
 112224411
 011111110
+0
 desc: stacks 4
 tip: 
 width: 10
@@ -245,6 +269,7 @@ height: 6
 1322222251
 1122244111
 0111111100
+0
 desc: stacks 5
 tip: 
 width: 9
@@ -255,6 +280,7 @@ height: 6
 132222210
 112224410
 011111110
+0
 desc: false fork 1 (hook)
 tip: 
 width: 12
@@ -266,6 +292,7 @@ height: 7
 122224222111
 112221211100
 011111110000
+0
 desc: false fork 2
 tip: 
 width: 9
@@ -276,6 +303,7 @@ height: 6
 122221221
 132224211
 111111110
+0
 desc: false fork 3 (lanes)
 tip: 
 width: 8
@@ -287,6 +315,7 @@ height: 7
 13224241
 12221221
 11111111
+0
 desc: credits
 tip: Thanks for playing!
 width: 3
@@ -295,6 +324,7 @@ height: 4
 131
 151
 111
+0
 desc: L-shape orientation
 tip: 
 width: 9
@@ -304,3 +334,4 @@ height: 5
 122232421
 122224221
 111111111
+0

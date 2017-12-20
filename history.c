@@ -1,6 +1,7 @@
 #include "config.h"
 #include "violet/all.h"
 #include "action.h"
+#include "types.h"
 #include "history.h"
 
 void history_push(struct history *hist, enum action action, u32 num_clones)
