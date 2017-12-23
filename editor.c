@@ -110,11 +110,39 @@ void editor__cursor_move_to(s32 i, s32 j, u32 *num_moves_)
 }
 
 static
+u32 editor__tile_actor_idx(const struct map *map, s32 i, s32 j)
+{
+	u32 actor_idx = 0;
+	s32 ii = 0, jj = 0;
+	while (!(ii == i && jj == j)) {
+		if (map->tiles[ii][jj].type == TILE_ACTOR)
+			++actor_idx;
+		if (++jj == MAP_DIM_MAX) {
+			++ii;
+			jj = 0;
+		}
+	}
+	return actor_idx;
+}
+
+static
 void editor__rotate_tile_cw(struct map *map)
 {
 	const s32 i = editor_cursor.y;
 	const s32 j = editor_cursor.x;
-	map->tiles[i][j].type = (map->tiles[i][j].type + 1) % (TILE_DOOR + 1);
+	if (map->tiles[i][j].type == TILE_ACTOR) {
+		const u32 actor_idx = editor__tile_actor_idx(map, i, j);
+		if (map->actor_controlled_by_player[actor_idx] == PLAYER_CNT_MAX - 1)
+			map->tiles[i][j].type = (map->tiles[i][j].type + 1) % (TILE_DOOR + 1);
+		else
+			++map->actor_controlled_by_player[actor_idx];
+	} else {
+		map->tiles[i][j].type = (map->tiles[i][j].type + 1) % (TILE_DOOR + 1);
+		if (map->tiles[i][j].type == TILE_ACTOR) {
+			const u32 actor_idx = editor__tile_actor_idx(map, i, j);
+			map->actor_controlled_by_player[actor_idx] = 0;
+		}
+	}
 }
 
 static
@@ -122,7 +150,19 @@ void editor__rotate_tile_ccw(struct map *map)
 {
 	const s32 i = editor_cursor.y;
 	const s32 j = editor_cursor.x;
-	map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
+	if (map->tiles[i][j].type == TILE_ACTOR) {
+		const u32 actor_idx = editor__tile_actor_idx(map, i, j);
+		if (map->actor_controlled_by_player[actor_idx] == 0)
+			map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
+		else
+			--map->actor_controlled_by_player[actor_idx];
+	} else {
+		map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
+		if (map->tiles[i][j].type == TILE_ACTOR) {
+			const u32 actor_idx = editor__tile_actor_idx(map, i, j);
+			map->actor_controlled_by_player[actor_idx] = PLAYER_CNT_MAX - 1;
+		}
+	}
 }
 
 static
@@ -373,14 +413,22 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 	gui_npt(gui, 2, screen.y - TILE_SIZE + 2, screen.x - 4, TILE_SIZE - 4,
 	        editor_map->desc, MAP_TIP_MAX - 1, "description", 0);
 
-	for (s32 i = 0; i < editor_map->dim.y; ++i) {
-		const s32 y = offset.y + i * TILE_SIZE;
-		for (s32 j = 0; j < editor_map->dim.x; ++j) {
-			const s32 x = offset.x + j * TILE_SIZE;
-			const enum tile_type type = editor_map->tiles[i][j].type;
-			const color_t color = { .r=0x32, .g=0x2f, .b=0x2f, .a=0xff };
-			gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-			         g_tile_fills[type], color);
+	{
+		u32 actor_idx = 0;
+		for (s32 i = 0; i < editor_map->dim.y; ++i) {
+			const s32 y = offset.y + i * TILE_SIZE;
+			for (s32 j = 0; j < editor_map->dim.x; ++j) {
+				const s32 x = offset.x + j * TILE_SIZE;
+				const enum tile_type type = editor_map->tiles[i][j].type;
+				const color_t color = { .r=0x32, .g=0x2f, .b=0x2f, .a=0xff };
+				gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_tile_fills[type], color);
+				if (type == TILE_ACTOR) {
+					char buf[8];
+					sprintf(buf, "%u", editor_map->actor_controlled_by_player[actor_idx] + 1);
+					gui_txt_styled(gui, x, y, TILE_SIZE, TILE_SIZE, buf, &gui_style(gui)->txt);
+					++actor_idx;
+				}
+			}
 		}
 	}
 
