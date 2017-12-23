@@ -11,7 +11,7 @@
 
 static u32 editor_map_idx;
 static array(struct map) *editor_maps;
-static struct map editor_map_orig;
+static struct map editor_map_orig, editor_map_cut;
 static v2i editor_cursor;
 static struct player editor_player;
 
@@ -19,6 +19,7 @@ void editor_init(void)
 {
 	editor_maps = NULL;
 	editor_map_idx = ~0;
+	editor_map_cut.dim = g_v2i_zero;
 	player_init(&editor_player, 0);
 }
 
@@ -312,7 +313,26 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 	gui_dim(gui, &screen.x, &screen.y);
 	offset = v2i_scale_inv(v2i_sub(screen, v2i_scale(editor_map->dim, TILE_SIZE)), 2);
 
-	if (player_desires_action(&editor_player, ACTION_MOVE_UP, gui)) {
+	if (key_mod(gui, KBM_CTRL)) {
+		if (key_pressed(gui, KB_X)) {
+			editor_map_cut = *editor_map;
+			array_remove(*editor_maps, editor_map_idx);
+			if (editor_map_idx == array_sz(*editor_maps)) {
+				const struct map map_empty = { 0 };
+				array_append(*editor_maps, map_empty);
+			} else {
+				editor_map = &(*editor_maps)[editor_map_idx];
+			}
+			editor__init_map(*editor_map);
+			history_clear(&editor_player.history);
+		} else if (   key_pressed(gui, KB_V)
+		           && !v2i_equal(editor_map_cut.dim, g_v2i_zero)) {
+			array_insert(*editor_maps, editor_map_idx, editor_map_cut);
+			editor_map = &(*editor_maps)[editor_map_idx];
+			history_clear(&editor_player.history);
+			editor_map_cut.dim = g_v2i_zero;
+		}
+	} else if (player_desires_action(&editor_player, ACTION_MOVE_UP, gui)) {
 		editor_cursor.y = min(editor_cursor.y + 1, MAP_DIM_MAX - 1);
 		history_push(&editor_player.history, ACTION_MOVE_UP, 0);
 	} else if (player_desires_action(&editor_player, ACTION_MOVE_DOWN, gui)) {
