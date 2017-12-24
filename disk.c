@@ -7,7 +7,7 @@
 b32 load_maps(const char *filename, array(struct map) *maps)
 {
 	b32 success = false;
-	u32 n;
+	u32 i = 0, n = 0;
 	FILE *fp;
 
 	array_clear(*maps);
@@ -19,7 +19,7 @@ b32 load_maps(const char *filename, array(struct map) *maps)
 	if (!vson_read_u32(fp, "maps", &n) || n == 0)
 		goto out;
 
-	for (u32 i = 0; i < n; ++i) {
+	for (i = 0; i < n; ++i) {
 		struct map map;
 		u32 num_actors = 0;
 		char row[MAP_DIM_MAX + 1];
@@ -47,8 +47,10 @@ b32 load_maps(const char *filename, array(struct map) *maps)
 	success = true;
 
 out:
-	if (!success)
+	if (!success) {
 		array_clear(*maps);
+		log_error("map load error near entry %u/%u", i, n);
+	}
 	return success;
 }
 
