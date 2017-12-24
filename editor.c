@@ -313,7 +313,8 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 	gui_dim(gui, &screen.x, &screen.y);
 	offset = v2i_scale_inv(v2i_sub(screen, v2i_scale(editor_map->dim, TILE_SIZE)), 2);
 
-	if (key_mod(gui, KBM_CTRL)) {
+	if (gui_any_widget_has_focus(gui)) {
+	} else if (key_mod(gui, KBM_CTRL)) {
 		if (key_pressed(gui, KB_X)) {
 			editor_map_cut = *editor_map;
 			array_remove(*editor_maps, editor_map_idx);
