@@ -1,4 +1,4 @@
-maps: 31
+maps: 53
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -73,7 +73,7 @@ height: 4
 132451
 111111
 0
-desc: corner rotation 1 (intro)
+desc: corner rotation 1
 tip: 
 width: 7
 height: 4
@@ -82,7 +82,7 @@ height: 4
 1322251
 1111111
 0
-desc: corner rotation 2 (extended)
+desc: corner rotation 2
 tip: 
 width: 9
 height: 6
@@ -93,7 +93,7 @@ height: 6
 134215221
 111111111
 0
-desc: corner rotation 2 (T-shape)
+desc: corner rotation 3
 tip: 
 width: 10
 height: 8
@@ -106,30 +106,41 @@ height: 8
 1252222411
 1111111110
 0
-desc: corner rotation 3 (2-L-shape, P-C-C)
+desc: diagonal 1
 tip: 
-width: 11
-height: 7
-00111011100
-11141114100
-13222222111
-11111122221
-00000112221
-00000011251
-00000001111
-0
-desc: corner rotation 4 (2-L-shape, tighter)
-tip: 
-width: 8
+width: 6
 height: 6
-00111111
-11141121
-13222221
-11114251
-00011211
-00001110
+111100
+132110
+122411
+114221
+012251
+011111
 0
-desc: corner rotation 5 (2-L-shape, P-C-C)
+desc: diagonal 2
+tip: 
+width: 5
+height: 7
+11100
+13111
+12141
+12421
+11221
+01151
+00111
+0
+desc: diagonal 2
+tip: 
+width: 6
+height: 6
+111000
+131110
+122410
+124211
+112251
+011111
+0
+desc: 3-1
 tip: 
 width: 8
 height: 6
@@ -139,6 +150,158 @@ height: 6
 11114221
 00011211
 00001110
+0
+desc: 3-2
+tip: 
+width: 12
+height: 7
+001110111111
+111411141521
+132222221221
+111111222221
+000001122211
+000000112110
+000000011100
+0
+desc: 3-3
+tip: 
+width: 9
+height: 6
+000000111
+111111151
+122222421
+132224221
+111111121
+000000111
+0
+desc: 3-4
+tip: 
+width: 9
+height: 5
+111000111
+121111151
+122222421
+132224221
+111111111
+0
+desc: diagonal 3
+tip: 
+width: 5
+height: 5
+11111
+13241
+12421
+14251
+11111
+0
+desc: diagonal 4
+tip: 
+width: 6
+height: 6
+111111
+132241
+122421
+124221
+142251
+111111
+0
+desc: 4-1
+tip: 
+width: 10
+height: 6
+0000111000
+1111141100
+1232222110
+1224242511
+1111112221
+0000011111
+0
+desc: 4-2
+tip: 
+width: 11
+height: 5
+01111111110
+11311411511
+12222222221
+12242422221
+11111111111
+0
+desc: 4-3
+tip: 
+width: 10
+height: 5
+1110001110
+1211111511
+1222324221
+1222242421
+1111111111
+0
+desc: 4-4
+tip: 
+width: 11
+height: 6
+11100011100
+12111114111
+12223222221
+12222424511
+12111111110
+11100000000
+0
+desc: clump 1
+tip: 
+width: 6
+height: 6
+111000
+131110
+122411
+122241
+142451
+111111
+0
+desc: clump 2
+tip: 
+width: 6
+height: 6
+111111
+132421
+124241
+112421
+011251
+001111
+0
+desc: clump 3
+tip: 
+width: 6
+height: 6
+111111
+132241
+122421
+112241
+011451
+001111
+0
+desc: clump 4
+tip: 
+width: 7
+height: 7
+1111110
+1322410
+1124211
+0142421
+0124211
+0125110
+0111100
+0
+desc: clump 5
+tip: 
+width: 6
+height: 6
+111111
+131241
+122421
+122241
+142451
+111111
 0
 desc: connect four 1
 tip: 
@@ -152,7 +315,7 @@ height: 7
 111151
 000111
 0
-desc: connect four 2 (shrunk)
+desc: connect four 2
 tip: 
 width: 6
 height: 7
@@ -164,7 +327,7 @@ height: 7
 111151
 000111
 0
-desc: connect four 3 (extra)
+desc: connect four 3
 tip: 
 width: 6
 height: 7
@@ -176,7 +339,7 @@ height: 7
 111151
 000111
 0
-desc: clump 1
+desc: clump 6
 tip: 
 width: 9
 height: 6
@@ -187,7 +350,7 @@ height: 6
 124221000
 111111000
 0
-desc: clump 2
+desc: clump 7
 tip: 
 width: 9
 height: 6
@@ -198,32 +361,102 @@ height: 6
 124241100
 111111000
 0
-desc: clump 3
+desc: clump 8
 tip: 
 width: 9
 height: 9
 111111111
-122242221
-122422221
-124242221
-132422251
-124242221
-122422221
-122242221
+124242421
+142424241
+124242421
+132424251
+124242421
+142424241
+124242421
 111111111
 0
-desc: diamond
+desc: diagonal 5
+tip: 
+width: 9
+height: 7
+111111111
+132222241
+114122421
+011124221
+000112221
+000011151
+000000111
+0
+desc: diagonal 6
+tip: 
+width: 10
+height: 7
+1111111110
+1322222411
+1141224221
+0111242211
+0001122221
+0000111251
+0000001111
+0
+desc: diamond 1
+tip: 
+width: 10
+height: 6
+0111000000
+0131100000
+0124111111
+1122424221
+1222242251
+1111111111
+0
+desc: diamond 2
+tip: 
+width: 8
+height: 6
+11111111
+13222421
+12414221
+12242221
+11111151
+00000111
+0
+desc: diamond 3
+tip: 
+width: 9
+height: 7
+111111111
+132422241
+122122421
+122424221
+122242221
+111111151
+000000111
+0
+desc: diamond 4
+tip: 
+width: 12
+height: 7
+111111111000
+132222241100
+124122425100
+122424221111
+122242222221
+111121111111
+000111000000
+0
+desc: diamond 5
 tip: 
 width: 9
 height: 9
 111111111
-122242221
-122424221
-124222421
+142542221
+121424221
+124221421
 132222241
-124222421
+124122421
 122424221
-122242251
+122242221
 111111111
 0
 desc: stacks 1
@@ -281,7 +514,7 @@ height: 6
 112224410
 011111110
 0
-desc: false fork 1 (hook)
+desc: false fork 1
 tip: 
 width: 12
 height: 7
@@ -325,13 +558,25 @@ height: 4
 151
 111
 0
-desc: L-shape orientation
+desc: multi
 tip: 
-width: 9
-height: 5
-111000111
-121111151
-122232421
-122224221
-111111111
+width: 8
+height: 6
+11111111
+12452251
+12222241
+12224221
+12322321
+11111111
+00
+desc: require all
+tip: <need to keep level from ending until all CLONES are attached>
+width: 6
+height: 6
+111111
+132241
+122411
+121521
+142221
+111111
 0
