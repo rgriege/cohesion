@@ -87,6 +87,7 @@ static
 void dissolve_effect_add(array(struct effect) *effects, v2i offset, v2i tile,
                          color_t fill, u32 duration)
 {
+#ifdef SHOW_EFFECTS
 	static const v2i half_time = { .x = TILE_SIZE / 2, .y = TILE_SIZE / 2 };
 	const struct effect fx = {
 		.pos = v2i_add(v2i_add(offset, v2i_scale(tile, TILE_SIZE)), half_time),
@@ -95,6 +96,7 @@ void dissolve_effect_add(array(struct effect) *effects, v2i offset, v2i tile,
 		.duration = duration,
 	};
 	array_append(*effects, fx);
+#endif
 }
 
 static
@@ -278,6 +280,7 @@ void render_actor(gui_t *gui, v2i offset, v2i pos, color_t color)
 static
 void door_effect_add(array(struct effect2) *door_effects, s32 x, s32 y)
 {
+#ifdef SHOW_EFFECTS
 	const struct effect2 fx = {
 		.pos = { .x = x + rand() % TILE_SIZE, .y = y + rand() % TILE_SIZE },
 		.color = g_tile_fills[TILE_DOOR],
@@ -287,11 +290,13 @@ void door_effect_add(array(struct effect2) *door_effects, s32 x, s32 y)
 		.rotation_rate = (rand() % 20) / 3.f - 3.f,
 	};
 	array_append(*door_effects, fx);
+#endif
 }
 
 static
 void background_generate(array(struct effect) *effects, v2i screen)
 {
+#ifdef SHOW_EFFECTS
 	array_clear(*effects);
 
 	for (u32 i = 0; i < 3; ++i) {
@@ -308,6 +313,7 @@ void background_generate(array(struct effect) *effects, v2i screen)
 			array_append(*effects, fx);
 		}
 	}
+#endif
 }
 
 static
@@ -521,8 +527,13 @@ int main(int argc, char *const argv[])
 		u32 frame_milli, fps;
 		frame();
 		frame_milli = time_diff_milli(gui_frame_start(gui), time_current());
+#ifdef SHOW_EFFECTS
 		fps =   mode == EDIT && time_diff_milli(gui_last_input_time(gui), time_current())
 			    > IDLE_TIMER_MILLI ? FPS_IDLE : FPS_CAP;
+#else
+		fps =   time_diff_milli(gui_last_input_time(gui), time_current())
+			    > IDLE_TIMER_MILLI ? FPS_IDLE : FPS_CAP;
+#endif
 		if (frame_milli < (u32)(1000.f / fps))
 			time_sleep_milli((u32)(1000.f / fps) - frame_milli);
 	}
