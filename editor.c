@@ -326,8 +326,11 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 			}
 			editor__init_map(*editor_map);
 			history_clear(&editor_player.history);
+		} else if (key_pressed(gui, KB_C)) {
+			editor_map_cut = *editor_map;
 		} else if (   key_pressed(gui, KB_V)
 		           && !v2i_equal(editor_map_cut.dim, g_v2i_zero)) {
+			editor__restore_map(editor_map);
 			array_insert(*editor_maps, editor_map_idx, editor_map_cut);
 			editor_map = &(*editor_maps)[editor_map_idx];
 			history_clear(&editor_player.history);
@@ -395,11 +398,7 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 		history_clear(&editor_player.history);
 	} else if (key_pressed(gui, key_next)) {
 		editor__restore_map(editor_map);
-		if (key_mod(gui, KBM_CTRL)) {
-			const struct map map_copy = *editor_map;
-			++editor_map_idx;
-			array_insert(*editor_maps, editor_map_idx, map_copy);
-		} else if (editor_map_idx + 1 == array_sz(*editor_maps)) {
+		if (editor_map_idx + 1 == array_sz(*editor_maps)) {
 			if (editor__map_is_blank(editor_map)) {
 				array_pop(*editor_maps);
 				editor_map_idx = 0;
