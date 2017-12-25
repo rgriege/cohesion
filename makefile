@@ -3,8 +3,8 @@ INC = /usr/include
 CCFLAGS = -std=gnu99 -g -g3 -DDEBUG -Darray_size_t=u32 -Wall -Werror -Wno-missing-braces -I. -I$(INC)/ -I$(INC)/SDL2/
 # CCFLAGS = -std=gnu99 -DNDEBUG -Darray_size_t=u32 -Wall -Werror -Wno-missing-braces -I. -I$(INC)/ -I$(INC)/SDL2/
 LFLAGS = -lGL -lGLEW -lm -lSDL2 -lSDL2_mixer -ldl
-HEADERS := action.h actor.h audio.h config.h constants.h disk.h editor.h history.h key.h player.h settings.h types.h
-SOURCES := action.c actor.c audio.c disk.c editor.c history.c key.c main.c player.c settings.c
+HEADERS := action.h actor.h audio.h config.h constants.h disk.h editor.h history.h key.h level.h player.h settings.h types.h
+SOURCES := action.c actor.c audio.c disk.c editor.c history.c key.c level.c player.c settings.c
 OBJECTS := $(SOURCES:c=o)
 SOUNDS_DESKTOP := $(wildcard *.aiff)
 SOUNDS_WEB = $(SOUNDS_DESKTOP:aiff=mp3)
@@ -12,8 +12,11 @@ RESOURCES_CORE := $(wildcard *.png) maps.vson Roboto.ttf
 RESOURCES_DESKTOP = $(SOUNDS_DESKTOP) $(RESOURCES_CORE)
 RESOURCES_WEB = $(SOUNDS_WEB) $(RESOURCES_CORE)
 
-cohesion: $(OBJECTS) $(RESOURCES_DESKTOP)
-	$(CC) $(CCFLAGS) -o cohesion $(OBJECTS) $(LFLAGS)
+cohesion: $(OBJECTS) main.o $(RESOURCES_DESKTOP)
+	$(CC) $(CCFLAGS) -o cohesion $(OBJECTS) main.o $(LFLAGS)
+
+analyze: $(OBJECTS) analyze.o
+	$(CC) $(CCFLAGS) -o analyze $(OBJECTS) analyze.o $(LFLAGS)
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CCFLAGS) -c $< -o $@
