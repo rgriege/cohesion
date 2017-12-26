@@ -17,6 +17,10 @@ struct state
 {
 	struct actor actors[ACTOR_CNT_MAX];
 	u32 num_actors;
+	u32 from;
+	enum action in_action;
+	u32 cost;
+	b32 complete;
 };
 
 struct stats
@@ -141,34 +145,46 @@ b32 state_eq(const struct state *lhs, const struct state *rhs)
 			return false;
 		if (lhs->actors[i].num_clones != rhs->actors[i].num_clones)
 			return false;
-		for (u32 j = 0; j < lhs->actors[i].num_clones; ++j)
-			if (!v2i_equal(lhs->actors[i].clones[j], rhs->actors[i].clones[j]))
+		for (u32 j = 0; j < lhs->actors[i].num_clones; ++j) {
+			u32 k;
+			for (k = 0; k < rhs->actors[i].num_clones; ++k)
+				if (v2i_equal(lhs->actors[i].clones[j], rhs->actors[i].clones[k]))
+					break;
+			if (k == rhs->actors[i].num_clones)
 				return false;
+		}
 	}
 	return true;
 }
 
 static
-b32 state_duplicated(array(struct state) states, struct state *state)
+b32 state_duplicated(array(struct state) states, struct state *state, u32 *idx)
 {
-	array_foreach(states, struct state, s)
-		if (state_eq(s, state))
+	array_iterate(states, i, n) {
+		if (state_eq(&states[i], state)) {
+			*idx = i;
 			return true;
+		}
+	}
 	return false;
 }
 
 /* assume 1 actor for now */
 static
-void recurse(struct level *level, u32 moves, array(struct state) *states,
+void recurse(struct level *level, array(struct state) *states,
              struct history *history, struct stats *stats)
 {
-	struct state state;
+	struct state state = {
+		.cost = array_last(*states).cost + 1,
+		.from = array_sz(*states) - 1,
+	};
 
-	if (moves > 30)
+	if (state.cost > 30)
 		return;
 
 	for (u32 i = 0; i < ACTION_COUNT; ++i) {
 		b32 possible = true;
+		u32 dup_idx;
 
 		if (!(action_is_solo(i) && i != ACTION_UNDO))
 			continue;
@@ -179,27 +195,33 @@ void recurse(struct level *level, u32 moves, array(struct state) *states,
 		if (!possible)
 			continue;
 
-		// printf("%*s%s\n", moves, "", action_to_string(i));
 		execute_action(i, level, history);
 
 		state.num_actors = level->num_actors;
 		memcpy(state.actors, level->actors, sizeof(struct actor) * ACTOR_CNT_MAX);
 
-		if (state_duplicated(*states, &state)) {
+		if (state_duplicated(*states, &state, &dup_idx)) {
+			if ((*states)[dup_idx].cost > state.cost) {
+				(*states)[dup_idx].cost = state.cost;
+				(*states)[dup_idx].from = state.from;
+				(*states)[dup_idx].in_action = i;
+			}
 		} else if (level_complete(level)) {
-			++stats->num_solutions;
-			if (moves < stats->min_solution_steps)
-				stats->min_solution_steps = moves;
-		} else {
+			state.in_action = i;
+			state.complete = true;
 			array_append(*states, state);
-			recurse(level, moves + 1, states, history, stats);
+		} else {
+			state.in_action = i;
+			state.complete = false;
+			array_append(*states, state);
+			recurse(level, states, history, stats);
 		}
 
 		undo(level, history);
 	}
 }
 
-void map_stats(const struct map *map, struct stats *stats)
+void map_stats(const struct map *map, struct stats *stats, b32 detail)
 {
 	struct level level;
 	struct player players[PLAYER_CNT_MAX];
@@ -218,7 +240,7 @@ void map_stats(const struct map *map, struct stats *stats)
 
 	states = array_create();
 	{
-		struct state state;
+		struct state state = { .cost = 0, .from = UINT_MAX, .in_action = ACTION_COUNT, };
 		state.num_actors = level.num_actors;
 		memcpy(state.actors, level.actors, sizeof(struct actor) * ACTOR_CNT_MAX);
 		array_append(states, state);
@@ -226,8 +248,50 @@ void map_stats(const struct map *map, struct stats *stats)
 
 	history_clear(&history);
 
-	recurse(&level, 0, &states, &history, stats);
+	recurse(&level, &states, &history, stats);
 	stats->action_space = array_sz(states);
+
+	{
+		b32 updated = true;
+		while (updated) {
+			updated = false;
+			array_foreach(states, struct state, state) {
+				if (state->from == UINT_MAX)
+					continue;
+				if (states[state->from].cost + 1 < state->cost) {
+					state->cost = states[state->from].cost + 1;
+					updated = true;
+				}
+			}
+		}
+	}
+	array_foreach(states, struct state, state) {
+		if (state->complete) {
+			++stats->num_solutions;
+			stats->min_solution_steps = min(stats->min_solution_steps, state->cost);
+		}
+	}
+
+	if (detail) {
+		array(struct state*) solution = array_create();
+		array_foreach(states, struct state, state) {
+			if (state->complete) {
+				array_clear(solution);
+				struct state *s = state;
+				printf("%u: ", s->cost);
+				while (s) {
+					array_append(solution, s);
+					s = s->from != UINT_MAX ? &states[s->from] : NULL;
+				}
+				for (u32 i = array_sz(solution) - 2; i > 0; --i)
+					printf("%s, ", action_to_string(solution[i]->in_action));
+				printf("%s", action_to_string(solution[0]->in_action));
+				printf("\n");
+			}
+		}
+		array_destroy(solution);
+	}
+
 	array_destroy(states);
 }
 
@@ -235,10 +299,15 @@ int main(int argc, char *const argv[])
 {
 	array(struct map) maps;
 	struct stats stats;
+	b32 detail = false;
 	int map = ~0;
 
-	if (argc > 1)
-		map = atoi(argv[1]) - 1;
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "-v") == 0)
+			detail = true;
+		else if (argv[i][0] != '-')
+			map = atoi(argv[i]) - 1;
+	}
 
 	maps = array_create();
 	if (!load_maps("maps.vson", &maps)) {
@@ -255,13 +324,13 @@ int main(int argc, char *const argv[])
 	       "solutions", "steps");
 	if (map == ~0) {
 		array_iterate(maps, i, n) {
-			map_stats(&maps[i], &stats);
+			map_stats(&maps[i], &stats, false);
 			printf("%10u,%10u,%10u,%10u,%10u,%10u\n", i + 1, stats.num_actors, stats.num_clones,
 						 stats.action_space, stats.num_solutions, stats.min_solution_steps);
 		}
 	} else {
 		map = clamp(0, map, array_sz(maps));
-		map_stats(&maps[map], &stats);
+		map_stats(&maps[map], &stats, detail);
 		printf("%10u,%10u,%10u,%10u,%10u,%10u\n", map + 1, stats.num_actors, stats.num_clones,
 		       stats.action_space, stats.num_solutions, stats.min_solution_steps);
 	}
