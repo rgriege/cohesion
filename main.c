@@ -654,6 +654,7 @@ void play(u32 frame_milli)
 	gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14,
 	        level.map.tip, g_white, GUI_ALIGN_CENTER);
 
+#if 0
 	if (!level.complete) {
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
 		if (gui_btn_img(gui, offset.x + level.map.dim.x * TILE_SIZE / 2 - 15,
@@ -661,6 +662,7 @@ void play(u32 frame_milli)
 			level_init(&level, players, &maps[level_idx]);
 		gui_style_pop(gui);
 	}
+#endif
 
 	if (!level.complete) {
 		for (s32 i = 0; i < level.map.dim.y; ++i) {
@@ -799,6 +801,21 @@ void play(u32 frame_milli)
 		}
 
 		move_actors(&level, players, frame_milli, milli_consumed);
+
+		{
+			const s32 x = offset.x + level.map.dim.x * TILE_SIZE / 2;
+			s32 y = offset.y - 40;
+			for (u32 i = 0; i < num_players; ++i) {
+				struct player *player = &players[i];
+				if (player->pending_action != ACTION_COUNT) {
+					char buf[64];
+					snprintf(buf, 64, "Player %u wants to %s", i + 1,
+					         action_to_string(player->pending_action));
+					gui_txt(gui, x, y, 14, buf, g_tile_fills[TILE_ACTOR], GUI_ALIGN_CENTER);
+					y -= 16;
+				}
+			}
+		}
 
 		if (key_pressed(gui, key_prev)) {
 			array_clear(dissolve_effects);
