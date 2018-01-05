@@ -1,4 +1,4 @@
-maps: 56
+maps: 55
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -37,7 +37,7 @@ height: 5
 11111
 0
 desc: avoid the clones
-tip: if you get stuck, press C or the reset button below
+tip: if you get stuck, press Z to undo or C to reset
 width: 9
 height: 5
 011111000
@@ -600,8 +600,3 @@ height: 9
 122242221
 111111111
 0
-desc: 
-tip: 
-width: 0
-height: 0
-
