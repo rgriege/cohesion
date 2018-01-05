@@ -380,7 +380,7 @@ v2i screen, offset;
 v2i cursor;
 const char *g_solo_maps_file_name = "maps.vson";
 const char *g_coop_maps_file_name = "maps_coop.vson";
-const char *g_current_maps_file_name;
+char g_current_maps_file_name[128];
 
 
 void frame(void);
@@ -518,7 +518,9 @@ void frame(void)
 		u32 level_to_play;
 		editor_update(gui, &level_to_play);
 		if (level_to_play < array_sz(maps)) {
-			save_maps(g_current_maps_file_name, maps);
+			if (   g_current_maps_file_name[0] != '\0'
+			    || file_save_dialog(g_current_maps_file_name, 128, "vson"))
+				save_maps(g_current_maps_file_name, maps);
 			level_idx = level_to_play;
 			level_init(&level, players, &maps[level_idx]);
 			mode = PLAY;
@@ -545,7 +547,7 @@ void menu(u32 frame_milli)
 		mode = PLAY;
 		level_idx = 0;
 		num_players = 1;
-		g_current_maps_file_name = g_solo_maps_file_name;
+		strcpy(g_current_maps_file_name, g_solo_maps_file_name);
 		level_init(&level, players, &maps[level_idx]);
 		background_generate(&bg_effects, screen);
 	}
@@ -556,7 +558,7 @@ void menu(u32 frame_milli)
 		mode = PLAY;
 		level_idx = 0;
 		num_players = 2;
-		g_current_maps_file_name = g_coop_maps_file_name;
+		strcpy(g_current_maps_file_name, g_coop_maps_file_name);
 		level_init(&level, players, &maps[level_idx]);
 		background_generate(&bg_effects, screen);
 	}
@@ -565,8 +567,11 @@ void menu(u32 frame_milli)
 		const struct map map_empty = { 0 };
 		mode = EDIT;
 		level_idx = 0;
+		num_players = 1;
 		array_clear(maps);
 		array_append(maps, map_empty);
+		g_current_maps_file_name[0] = '\0';
+		file_open_dialog(g_current_maps_file_name, 128, "vson");
 		editor_edit_map(&maps, level_idx);
 	}
 	y -= h;
