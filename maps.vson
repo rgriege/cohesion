@@ -1,4 +1,4 @@
-maps: 55
+maps: 51
 desc: movement intro
 tip: use WASD to move the orange PLAYER to the yellow DOOR
 width: 7
@@ -402,12 +402,24 @@ height: 7
 111111111
 132222241
 114122421
+011114221
+000012221
+000011151
+000000111
+0
+desc: diagonal 6
+tip: 
+width: 9
+height: 7
+111111111
+132222141
+114122421
 011124221
 000112221
 000011151
 000000111
 0
-desc: diagonal 6
+desc: diagonal 7
 tip: 
 width: 10
 height: 7
@@ -441,18 +453,6 @@ height: 6
 11111151
 00000111
 0
-desc: diamond 3
-tip: 
-width: 9
-height: 7
-111111111
-132422241
-122122421
-122424221
-122242221
-111111151
-000000111
-0
 desc: stacks 1
 tip: 
 width: 9
@@ -469,10 +469,10 @@ tip:
 width: 8
 height: 6
 11111110
-12224411
-12224451
-13222211
 12224410
+12224411
+13222251
+12224411
 11111110
 0
 desc: stacks 3
@@ -480,10 +480,10 @@ tip:
 width: 8
 height: 6
 11111110
+12224411
+12224451
+13222111
 12224410
-12224411
-13222251
-12224411
 11111110
 0
 desc: stacks 4
@@ -508,7 +508,7 @@ height: 6
 112224410
 011111110
 0
-desc: false fork 1
+desc: fork 1
 tip: 
 width: 7
 height: 6
@@ -519,19 +519,7 @@ height: 6
 1324211
 1111110
 0
-desc: false fork 2
-tip: 
-width: 13
-height: 7
-0000111110000
-0011121211100
-1112224222111
-1322221422251
-1112224222111
-0011121211100
-0000111110000
-0
-desc: false fork 3 (lanes)
+desc: fork 2
 tip: 
 width: 8
 height: 7
@@ -542,6 +530,18 @@ height: 7
 13224241
 12221221
 11111111
+0
+desc: fork 3
+tip: 
+width: 13
+height: 7
+0000111110000
+0011121211100
+1112224222111
+1322221422251
+1112224222111
+0011121211100
+0000111110000
 0
 desc: credits
 tip: Thanks for playing!
@@ -573,6 +573,18 @@ height: 6
 121521
 142221
 111111
+0
+desc: diamond 3
+tip: 
+width: 9
+height: 7
+111111111
+132422241
+122122421
+122424221
+122242221
+111111151
+000000111
 0
 desc: diamond 4
 tip: 
