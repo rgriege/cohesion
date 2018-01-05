@@ -586,24 +586,20 @@ void play(u32 frame_milli)
 		background_generate(&bg_effects, screen);
 #endif // DEBUG
 
-	for (u32 i = 0; i < array_sz(bg_effects); ) {
-		struct effect *fx = &bg_effects[i];
+	array_foreach(bg_effects, struct effect, fx) {
 		fx->t += (r32)frame_milli / fx->duration;
+		if (fx->t > 2.f)
+			fx->t = 0.f;
 		if (fx->t <= 1.f) {
 			const u32 sz = TILE_SIZE;
 			color_t fill = fx->color;
 			fill.a = 48 * fx->t + 16;
 			gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
-			++i;
 		} else if (fx->t <= 2.f) {
 			const u32 sz = TILE_SIZE;
 			color_t fill = fx->color;
 			fill.a = 48 * (2.f - fx->t) + 16;
 			gui_rect(gui, fx->pos.x - sz / 2, fx->pos.y - sz / 2, sz, sz, fill, g_nocolor);
-			++i;
-		} else {
-			fx->t = 0.f;
-			// MARK
 		}
 	}
 
