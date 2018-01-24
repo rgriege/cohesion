@@ -477,17 +477,17 @@ int main(int argc, char *const argv[])
 		goto err_audio;
 
 #ifdef __EMSCRIPTEN__
-	check(sound_init(&sound_error, "error.mp3"));
-	check(sound_init(&sound_slide, "slide.mp3"));
-	check(sound_init(&sound_swipe, "swipe.mp3"));
-	check(sound_init(&sound_success, "success.mp3"));
-	check(music_init(&music, "score.mp3"));
+	check(sound_init(&sound_error, "sounds/error.mp3"));
+	check(sound_init(&sound_slide, "sounds/slide.mp3"));
+	check(sound_init(&sound_swipe, "sounds/swipe.mp3"));
+	check(sound_init(&sound_success, "sounds/success.mp3"));
+	check(music_init(&music, "sounds/score.mp3"));
 #else
-	check(sound_init(&sound_error, "error.aiff"));
-	check(sound_init(&sound_slide, "slide.aiff"));
-	check(sound_init(&sound_swipe, "swipe.aiff"));
-	check(sound_init(&sound_success, "success.aiff"));
-	check(music_init(&music, "score.aiff"));
+	check(sound_init(&sound_error, "sounds/error.aiff"));
+	check(sound_init(&sound_slide, "sounds/slide.aiff"));
+	check(sound_init(&sound_swipe, "sounds/swipe.aiff"));
+	check(sound_init(&sound_success, "sounds/success.aiff"));
+	check(music_init(&music, "sounds/score.aiff"));
 #endif
 
 	{

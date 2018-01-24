@@ -6,21 +6,10 @@ LFLAGS = -lGL -lGLEW -lm -lSDL2 -lSDL2_mixer -ldl
 HEADERS := action.h actor.h audio.h config.h constants.h disk.h editor.h history.h key.h level.h player.h settings.h types.h
 SOURCES := action.c actor.c audio.c disk.c editor.c history.c key.c level.c player.c settings.c
 OBJECTS := $(SOURCES:c=o)
-SOUNDS_DESKTOP := $(wildcard *.aiff)
+SOUNDS_DESKTOP := $(wildcard sounds/*.aiff)
 SOUNDS_WEB = $(SOUNDS_DESKTOP:aiff=mp3)
 IMAGES := \
-	sprites/actor/down_0.png \
-	sprites/actor/up_1.png \
-	sprites/actor/right_0.png \
-	sprites/actor/up_0.png \
-	sprites/actor/left_0.png \
-	sprites/actor/down_2.png \
-	sprites/actor/left_1.png \
-	sprites/actor/down_1.png \
-	sprites/actor/right_2.png \
-	sprites/actor/left_2.png \
-	sprites/actor/up_2.png \
-	sprites/actor/right_1.png \
+	$(wildcard sprites/actor/*.png) \
 	sprites/clone/ \
 	sprites/clone2/ \
 	sprites/ui/sound.png \
@@ -54,7 +43,7 @@ analyze: $(OBJECTS) analyze.o
 	sox $< $@
 
 index.html: $(HEADERS) $(SOURCES) $(RESOURCES_WEB)
-	emcc main.c -O2 -I. -I$(INC)/SDL2/ -DFMATH_NO_SSE -DDMATH_NO_SSE -s WASM=1 --shell-file html_template/shell_minimal.html -o cohesion.html -s USE_SDL=2 $(foreach R, $(RESOURCES_WEB), --preload-file $(R))
+	emcc $(SOURCES) main.c -O2 -I. -I$(INC)/SDL2/ -DFMATH_NO_SSE -DDMATH_NO_SSE -s WASM=1 --shell-file html_template/shell_minimal.html -o cohesion.html -s USE_SDL=2 --preload-file sprites/ --preload-file sounds/
 	mv cohesion.html index.html
 
 cohesion.7z: index.html
