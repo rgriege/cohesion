@@ -2,7 +2,7 @@
 #define PLAYER_CNT_MAX 2
 #define MAP_DIM_MAX 14
 #define MAP_TIP_MAX 64
-#define TILE_SIZE 40
+#define TILE_SIZE 32
 #define ACTOR_CNT_MAX 2
 #define CLONE_CNT_MAX 32
 #define WALK_SPEED (TILE_SIZE * 4)
