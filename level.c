@@ -9,6 +9,7 @@
 void level_init(struct level *level, struct player players[], const struct map *map)
 {
 	struct actor *actor;
+	u32 player_idx;
 	struct player *player;
 
 	for (u32 i = 0; i < PLAYER_CNT_MAX; ++i)
@@ -31,9 +32,10 @@ void level_init(struct level *level, struct player players[], const struct map *
 			break;
 			case TILE_ACTOR:
 				actor = &level->actors[level->num_actors];
-				player = &players[map->actor_controlled_by_player[level->num_actors]];
+				player_idx = map->actor_controlled_by_player[level->num_actors];
+				player = &players[player_idx];
 
-				actor_init(actor, j, i, level);
+				actor_init(actor, player_idx, j, i, level);
 				++level->num_actors;
 
 				player->actors[player->num_actors] = actor;

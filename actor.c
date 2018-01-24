@@ -5,8 +5,9 @@
 #include "constants.h"
 #include "actor.h"
 
-void actor_init(struct actor *actor, s32 x, s32 y, struct level *level)
+void actor_init(struct actor *actor, u32 player, s32 x, s32 y, struct level *level)
 {
+	actor->player = player;
 	actor->tile = (v2i){ .x = x, .y = y };
 	actor->pos = v2i_to_v2f(v2i_scale(actor->tile, TILE_SIZE));
 	actor->dir = DIR_NONE;
@@ -81,7 +82,7 @@ b32 tile_occupied(const struct level *level, v2i tile,
 			return true;
 	for (u32 i = 0; i < level->num_actors; ++i) {
 		const struct actor *actor = &level->actors[i];
-		if (actor == excluded_actor)
+		if (actor->player == excluded_actor->player)
 			continue;
 		if (v2i_equal(actor->tile, tile))
 			return true;

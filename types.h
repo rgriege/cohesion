@@ -40,6 +40,7 @@ enum dir {
 };
 
 struct actor {
+	u32 player;
 	v2i tile;
 	v2f pos;
 	enum dir dir;
