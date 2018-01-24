@@ -30,14 +30,16 @@ void actor_entered_tile(struct actor *actor, struct level *level,
 #ifdef SHOW_TRAVELLED
 	level->map.tiles[tile.y][tile.x].travelled = true;
 	for (u32 i = 0; i < actor->num_clones; ++i) {
-		const v2i actor_clone = v2i_add(tile, actor->clones[i]);
+		const v2i actor_clone = v2i_add(tile, actor->clones[i].pos);
 		level->map.tiles[actor_clone.y][actor_clone.x].travelled = true;
 	}
 #endif
 
 	for (u32 j = 0; j < level->num_clones; ) {
-		if (manhattan_dist(level->clones[j], tile) == 1) {
-			actor->clones[actor->num_clones++] = v2i_sub(level->clones[j], tile);
+		if (manhattan_dist(level->clones[j].pos, tile) == 1) {
+			actor->clones[actor->num_clones].pos = v2i_sub(level->clones[j].pos, tile);
+			actor->clones[actor->num_clones].required = level->clones[j].required;
+			++actor->num_clones;
 			level->clones[j] = level->clones[--level->num_clones];
 		} else {
 			++j;
@@ -46,10 +48,12 @@ void actor_entered_tile(struct actor *actor, struct level *level,
 
 clones:
 	for (u32 i = 0; i < actor->num_clones; ++i) {
-		const v2i actor_clone = v2i_add(tile, actor->clones[i]);
+		const v2i actor_clone = v2i_add(tile, actor->clones[i].pos);
 		for (u32 j = 0; j < level->num_clones; ) {
-			if (manhattan_dist(level->clones[j], actor_clone) == 1) {
-				actor->clones[actor->num_clones++] = v2i_sub(level->clones[j], tile);
+			if (manhattan_dist(level->clones[j].pos, actor_clone) == 1) {
+				actor->clones[actor->num_clones].pos = v2i_sub(level->clones[j].pos, tile);
+				actor->clones[actor->num_clones].required = level->clones[j].required;
+				++actor->num_clones;
 				level->clones[j] = level->clones[--level->num_clones];
 				goto clones;
 			} else {
@@ -73,7 +77,7 @@ b32 tile_occupied(const struct level *level, v2i tile,
 	    && level->map.tiles[tile.y][tile.x].type != TILE_DOOR)
 		return true;
 	for (u32 i = 0; i < level->num_clones; ++i)
-		if (v2i_equal(level->clones[i], tile))
+		if (v2i_equal(level->clones[i].pos, tile))
 			return true;
 	for (u32 i = 0; i < level->num_actors; ++i) {
 		const struct actor *actor = &level->actors[i];
@@ -82,7 +86,7 @@ b32 tile_occupied(const struct level *level, v2i tile,
 		if (v2i_equal(actor->tile, tile))
 			return true;
 		for (u32 j = 0; j < actor->num_clones; ++j)
-			if (v2i_equal(v2i_add(actor->tile, actor->clones[j]), tile))
+			if (v2i_equal(v2i_add(actor->tile, actor->clones[j].pos), tile))
 				return true;
 	}
 	return false;
@@ -96,7 +100,7 @@ b32 actor_can_move(const struct actor *actor, const struct level *level,
 	if (tile_occupied(level, tile, actor))
 		return false;
 	for (u32 i = 0; i < actor->num_clones; ++i) {
-		const v2i clone_tile = v2i_add(tile, actor->clones[i]);
+		const v2i clone_tile = v2i_add(tile, actor->clones[i].pos);
 		if (tile_occupied(level, clone_tile, actor))
 			return false;
 	}
@@ -109,7 +113,7 @@ b32 actor_can_rotate(const struct actor *actor, const struct level *level,
 {
 	v2i(*perp)(v2i) = clockwise ? v2i_rperp : v2i_lperp;
 	for (u32 i = 0; i < actor->num_clones; ++i) {
-		const v2i clone_tile = v2i_add(actor->tile, perp(actor->clones[i]));
+		const v2i clone_tile = v2i_add(actor->tile, perp(actor->clones[i].pos));
 		if (tile_occupied(level, clone_tile, actor))
 			return false;
 	}
@@ -162,7 +166,7 @@ b32 actor_can_undo(const struct actor *actor, const struct level *level,
 		if (tile_occupied(level, v2i_add(actor->tile, g_v2i_down), actor))
 			return false;
 		for (u32 j = 0; j < num_clones; ++j) {
-			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j]);
+			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j].pos);
 			if (tile_occupied(level, v2i_add(clone_tile, g_v2i_down), actor))
 				return false;
 		}
@@ -171,7 +175,7 @@ b32 actor_can_undo(const struct actor *actor, const struct level *level,
 		if (tile_occupied(level, v2i_add(actor->tile, g_v2i_up), actor))
 			return false;
 		for (u32 j = 0; j < num_clones; ++j) {
-			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j]);
+			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j].pos);
 			if (tile_occupied(level, v2i_add(clone_tile, g_v2i_up), actor))
 				return false;
 		}
@@ -180,7 +184,7 @@ b32 actor_can_undo(const struct actor *actor, const struct level *level,
 		if (tile_occupied(level, v2i_add(actor->tile, g_v2i_right), actor))
 			return false;
 		for (u32 j = 0; j < num_clones; ++j) {
-			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j]);
+			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j].pos);
 			if (tile_occupied(level, v2i_add(clone_tile, g_v2i_right), actor))
 				return false;
 		}
@@ -189,21 +193,21 @@ b32 actor_can_undo(const struct actor *actor, const struct level *level,
 		if (tile_occupied(level, v2i_add(actor->tile, g_v2i_left), actor))
 			return false;
 		for (u32 j = 0; j < num_clones; ++j) {
-			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j]);
+			const v2i clone_tile = v2i_add(actor->tile, actor->clones[j].pos);
 			if (tile_occupied(level, v2i_add(clone_tile, g_v2i_left), actor))
 				return false;
 		}
 	break;
 	case ACTION_ROTATE_CW:
 		for (u32 j = 0; j < num_clones; ++j) {
-			const v2i clone_tile = v2i_add(actor->tile, v2i_lperp(actor->clones[j]));
+			const v2i clone_tile = v2i_add(actor->tile, v2i_lperp(actor->clones[j].pos));
 			if (tile_occupied(level, clone_tile, actor))
 				return false;
 		}
 	break;
 	case ACTION_ROTATE_CCW:
 		for (u32 j = 0; j < num_clones; ++j) {
-			const v2i clone_tile = v2i_add(actor->tile, v2i_rperp(actor->clones[j]));
+			const v2i clone_tile = v2i_add(actor->tile, v2i_rperp(actor->clones[j].pos));
 			if (tile_occupied(level, clone_tile, actor))
 				return false;
 		}

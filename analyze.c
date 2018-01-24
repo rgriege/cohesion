@@ -79,7 +79,7 @@ void execute_action(enum action action, struct level *level, struct history *his
 		for (u32 i = 0; i < level->num_actors; ++i) {
 			actor = &level->actors[i];
 			for (u32 j = 0; j < actor->num_clones; ++j)
-				actor->clones[j] = perp(actor->clones[j], action);
+				actor->clones[j].pos = perp(actor->clones[j].pos, action);
 			actor_entered_tile(actor, level, &num_clones_attached);
 		}
 	break;
@@ -101,9 +101,13 @@ void undo(struct level *level, struct history *history)
 		u32 num_clones;
 		if (history_pop(history, &action, &num_clones)) {
 			for (u32 j = 0; j < num_clones; ++j) {
-				const v2i tile_relative = actor->clones[--actor->num_clones];
+				const b32 required = actor->clones[actor->num_clones-1].required;
+				const v2i tile_relative = actor->clones[actor->num_clones-1].pos;
 				const v2i tile_absolute = v2i_add(actor->tile, tile_relative);
-				level->clones[level->num_clones++] = tile_absolute;
+				level->clones[level->num_clones].pos = tile_absolute;
+				level->clones[level->num_clones].required = required;
+				--actor->num_clones;
+				++level->num_clones;
 			}
 			switch (action) {
 			case ACTION_MOVE_UP:
@@ -120,11 +124,11 @@ void undo(struct level *level, struct history *history)
 			break;
 			case ACTION_ROTATE_CW:
 				for (u32 j = 0; j < actor->num_clones; ++j)
-					actor->clones[j] = v2i_lperp(actor->clones[j]);
+					actor->clones[j].pos = v2i_lperp(actor->clones[j].pos);
 			break;
 			case ACTION_ROTATE_CCW:
 				for (u32 j = 0; j < actor->num_clones; ++j)
-					actor->clones[j] = v2i_rperp(actor->clones[j]);
+					actor->clones[j].pos = v2i_rperp(actor->clones[j].pos);
 			break;
 			case ACTION_UNDO:
 			case ACTION_RESET:
@@ -148,7 +152,8 @@ b32 state_eq(const struct state *lhs, const struct state *rhs)
 		for (u32 j = 0; j < lhs->actors[i].num_clones; ++j) {
 			u32 k;
 			for (k = 0; k < rhs->actors[i].num_clones; ++k)
-				if (v2i_equal(lhs->actors[i].clones[j], rhs->actors[i].clones[k]))
+				if (   v2i_equal(lhs->actors[i].clones[j].pos, rhs->actors[i].clones[k].pos)
+				    && lhs->actors[i].clones[j].required == rhs->actors[i].clones[k].required)
 					break;
 			if (k == rhs->actors[i].num_clones)
 				return false;
@@ -299,18 +304,21 @@ int main(int argc, char *const argv[])
 {
 	array(struct map) maps;
 	struct stats stats;
+	const char *fname = "maps.vson";
 	b32 detail = false;
 	int map = ~0;
 
 	for (int i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "-v") == 0)
 			detail = true;
-		else if (argv[i][0] != '-')
-			map = atoi(argv[i]) - 1;
+		else if (strcmp(argv[i], "--file") == 0 && i + 1 < argc)
+			fname = argv[++i];
+		else if (strcmp(argv[i], "--level") == 0 && i + 1 < argc)
+			map = atoi(argv[++i]) - 1;
 	}
 
 	maps = array_create();
-	if (!load_maps("maps.vson", &maps)) {
+	if (!load_maps(fname, &maps)) {
 		fprintf(stderr, "failed to load maps\n");
 		return 1;
 	}

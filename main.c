@@ -122,9 +122,13 @@ void undo(struct player *player, struct level *level)
 		u32 num_clones;
 		if (history_pop(&player->history, &action, &num_clones)) {
 			for (u32 j = 0; j < num_clones; ++j) {
-				const v2i tile_relative = actor->clones[--actor->num_clones];
+				const b32 required = actor->clones[actor->num_clones-1].required;
+				const v2i tile_relative = actor->clones[actor->num_clones-1].pos;
 				const v2i tile_absolute = v2i_add(actor->tile, tile_relative);
-				level->clones[level->num_clones++] = tile_absolute;
+				level->clones[level->num_clones].pos = tile_absolute;
+				level->clones[level->num_clones].required = required;
+				--actor->num_clones;
+				++level->num_clones;
 			}
 			switch (action) {
 			case ACTION_MOVE_UP:
@@ -145,11 +149,11 @@ void undo(struct player *player, struct level *level)
 			break;
 			case ACTION_ROTATE_CW:
 				for (u32 j = 0; j < actor->num_clones; ++j)
-					actor->clones[j] = v2i_lperp(actor->clones[j]);
+					actor->clones[j].pos = v2i_lperp(actor->clones[j].pos);
 			break;
 			case ACTION_ROTATE_CCW:
 				for (u32 j = 0; j < actor->num_clones; ++j)
-					actor->clones[j] = v2i_rperp(actor->clones[j]);
+					actor->clones[j].pos = v2i_rperp(actor->clones[j].pos);
 			break;
 			case ACTION_UNDO:
 			case ACTION_RESET:
@@ -206,7 +210,7 @@ void execute_action(enum action action, struct player *player, struct level *lev
 		for (u32 i = 0; i < player->num_actors; ++i) {
 			actor = player->actors[i];
 			for (u32 j = 0; j < actor->num_clones; ++j)
-				actor->clones[j] = perp(actor->clones[j], action);
+				actor->clones[j].pos = perp(actor->clones[j].pos, action);
 			actor_entered_tile(actor, level, &num_clones_attached);
 			history_push(&player->history, action, num_clones_attached);
 		}
@@ -249,14 +253,14 @@ struct {
 	struct {
 		img_t *frames[ANIM_FRAMES];
 	} facing[4];
-} anims[2];
+} anims[3];
 
 static
-void render_figure(gui_t *gui, v2i pos, enum dir dir, b32 clone, u32 anim_milli)
+void render_figure(gui_t *gui, v2i pos, enum dir dir, u32 stage, u32 anim_milli)
 {
 	const u32 total_anim_milli = 1000 * (2 * TILE_SIZE) / WALK_SPEED;
 	const u32 anim_frame = (anim_milli / (total_anim_milli / ANIM_FRAMES)) % ANIM_FRAMES;
-	const img_t *img = anims[clone].facing[dir-1].frames[anim_frame];
+	const img_t *img = anims[stage].facing[dir-1].frames[anim_frame];
 	const r32 s = TILE_SIZE / (r32)img->texture.width;
 	gui_img_ex(gui, pos.x, pos.y + TILE_SIZE / 4, img, s, s, 1.f);
 }
@@ -427,7 +431,12 @@ u32 num_players;
 u32 time_until_next_door_fx = 0;
 struct music music;
 struct sound sound_error, sound_slide, sound_swipe, sound_success;
-img_t imgs[2*4*3];
+/*struct {
+	struct {
+		img_t *frames[4];
+	} facing[4];
+} anims[2];*/
+img_t imgs[3*4*3];
 array(struct map) maps;
 array(struct effect) bg_effects;
 array(struct effect) dissolve_effects;
@@ -481,23 +490,20 @@ int main(int argc, char *const argv[])
 	check(music_init(&music, "score.aiff"));
 #endif
 
-	for (u32 i = 0; i < 4; ++i) {
-		const enum dir dir = i + 1;
-		for (u32 j = 0; j < 3; ++j) {
-			char fname[32];
-			snprintf(fname, 32, "sprites/actor/%s_%u.png", dir_to_string(dir), j);
-			check(img_load(&imgs[i*3+j], fname));
+	{
+		static const char *names[] = { "actor", "clone", "clone2" };
+		for (u32 k = 0; k < 3; ++k) {
+			for (u32 i = 0; i < 4; ++i) {
+				const enum dir dir = i + 1;
+				for (u32 j = 0; j < 3; ++j) {
+					char fname[32];
+					snprintf(fname, 32, "sprites/%s/%s_%u.png", names[k], dir_to_string(dir), j);
+					check(img_load(&imgs[k*12+i*3+j], fname));
+				}
+			}
 		}
 	}
-	for (u32 i = 0; i < 4; ++i) {
-		const enum dir dir = i + 1;
-		for (u32 j = 0; j < 3; ++j) {
-			char fname[32];
-			snprintf(fname, 32, "sprites/clone/%s_%u.png", dir_to_string(dir), j);
-			check(img_load(&imgs[12+i*3+j], fname));
-		}
-	}
-	for (u32 i = 0; i < 2; ++i) {
+	for (u32 i = 0; i < 3; ++i) {
 		for (u32 j = 0; j < 4; ++j) {
 			anims[i].facing[j].frames[0] = &imgs[i*12+j*3];
 			anims[i].facing[j].frames[1] = &imgs[i*12+j*3+1];
@@ -649,14 +655,18 @@ void menu(u32 frame_milli)
 	}
 	y -= h;
 	if (gui_btn_txt(gui, x, y, w, h, "Edit") == BTN_PRESS || key_pressed(gui, KB_3)) {
-		const struct map map_empty = { 0 };
 		mode = EDIT;
 		level_idx = 0;
 		num_players = 1;
 		array_clear(maps);
-		array_append(maps, map_empty);
 		g_current_maps_file_name[0] = '\0';
-		file_open_dialog(g_current_maps_file_name, 128, "vson");
+		if (   file_open_dialog(g_current_maps_file_name, 128, "vson")
+		    && load_maps(g_current_maps_file_name, &maps)) {
+		} else {
+			g_current_maps_file_name[0] = '\0';
+			const struct map map_empty = { 0 };
+			array_append(maps, map_empty);
+		}
 		editor_edit_map(&maps, level_idx);
 	}
 	y -= h;
@@ -762,6 +772,7 @@ void play(u32 frame_milli)
 				case TILE_BLANK:
 				case TILE_ACTOR:
 				case TILE_CLONE:
+				case TILE_CLONE2:
 				break;
 				case TILE_HALL:;
 					c = color_lerp(level.map.tiles[i][j].active_color, g_stone,
@@ -941,15 +952,16 @@ void play(u32 frame_milli)
 			level.map.tiles[p.y][p.x].active_color = g_tile_fills[TILE_ACTOR];
 			level.map.tiles[p.y][p.x].t = 1.f;
 			for (u32 j = 0; j < level.actors[i].num_clones; ++j) {
-				const v2i p2 = v2i_add(p, level.actors[i].clones[j]);
-				level.map.tiles[p2.y][p2.x].active_color = g_tile_fills[TILE_CLONE];
+				const v2i p2 = v2i_add(p, level.actors[i].clones[j].pos);
+				level.map.tiles[p2.y][p2.x].active_color
+					= level.actors[i].clones[j].required ? g_tile_fills[TILE_CLONE2] : g_tile_fills[TILE_CLONE];
 				level.map.tiles[p2.y][p2.x].t = 1.f;
 			}
 		}
 
 		for (u32 i = 0; i < level.num_clones; ++i) {
-			const v2i pos = v2i_add(offset, v2i_scale(level.clones[i], TILE_SIZE));
-			render_clone(gui, pos, DIR_DOWN, 0);
+			const v2i pos = v2i_add(offset, v2i_scale(level.clones[i].pos, TILE_SIZE));
+			render_clone(gui, pos, level.clones[i].required, DIR_DOWN, 0);
 		}
 
 		for (u32 i = 0; i < level.num_actors; ++i) {
@@ -957,9 +969,9 @@ void play(u32 frame_milli)
 			const v2i actor_pos = v2i_add(offset, v2f_to_v2i(actor->pos));
 			render_actor(gui, actor_pos, actor->facing, actor->anim_milli);
 			for (u32 j = 0; j < actor->num_clones; ++j) {
-				const v2i clone_pos
-					= v2i_add(actor_pos, v2i_scale(actor->clones[j], TILE_SIZE));
-				render_clone(gui, clone_pos, actor->facing, actor->anim_milli);
+				const struct clone *clone = &actor->clones[j];
+				const v2i clone_pos = v2i_add(actor_pos, v2i_scale(clone->pos, TILE_SIZE));
+				render_clone(gui, clone_pos, clone->required, actor->facing, actor->anim_milli);
 			}
 		}
 	}
@@ -980,11 +992,13 @@ void play(u32 frame_milli)
 			dissolve_effect_add(&dissolve_effects, offset, actor->tile,
 			                    g_tile_fills[TILE_ACTOR],
 			                    LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
-			for (u32 j = 0; j < actor->num_clones; ++j)
+			for (u32 j = 0; j < actor->num_clones; ++j) {
+				const struct clone *clone = &actor->clones[j];
 				dissolve_effect_add(&dissolve_effects, offset,
-				                    v2i_add(actor->tile, actor->clones[j]),
-				                    g_tile_fills[TILE_CLONE],
+				                    v2i_add(actor->tile, clone->pos),
+				                    clone->required ? g_tile_fills[TILE_CLONE2] : g_tile_fills[TILE_CLONE],
 				                    LEVEL_COMPLETE_EFFECT_DURATION_MILLI);
+			}
 		}
 		sound_play(&sound_success);
 		level.complete = true;

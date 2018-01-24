@@ -5,7 +5,9 @@ enum tile_type {
 	TILE_ACTOR,
 	TILE_CLONE,
 	TILE_DOOR,
+	TILE_CLONE2,
 };
+#define TILE_CNT (TILE_CLONE2 + 1)
 
 struct tile {
 	enum tile_type type;
@@ -24,6 +26,11 @@ struct map {
 	u32 actor_controlled_by_player[ACTOR_CNT_MAX];
 };
 
+struct clone {
+	v2i pos;
+	b32 required;
+};
+
 enum dir {
 	DIR_NONE,
 	DIR_UP,
@@ -38,7 +45,7 @@ struct actor {
 	enum dir dir;
 	enum dir facing;
 	u32 anim_milli;
-	v2i clones[CLONE_CNT_MAX];
+	struct clone clones[CLONE_CNT_MAX];
 	u32 num_clones;
 };
 
@@ -46,7 +53,7 @@ struct level {
 	struct map map;
 	struct actor actors[ACTOR_CNT_MAX];
 	u32 num_actors;
-	v2i clones[CLONE_CNT_MAX];
+	struct clone clones[CLONE_CNT_MAX];
 	u32 num_clones;
 	b32 complete;
 };

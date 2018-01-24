@@ -45,7 +45,9 @@ void level_init(struct level *level, struct player players[], const struct map *
 #endif
 			break;
 			case TILE_CLONE:
-				level->clones[level->num_clones] = (v2i){ .x = j, .y = i };
+			case TILE_CLONE2:
+				level->clones[level->num_clones].pos = (v2i){ .x = j, .y = i };
+				level->clones[level->num_clones].required = map->tiles[i][j].type == TILE_CLONE2;
 				++level->num_clones;
 				level->map.tiles[i][j].type = TILE_HALL;
 #ifdef SHOW_TRAVELLED
@@ -70,5 +72,8 @@ b32 level_complete(const struct level *level)
 		    || actor->dir != DIR_NONE)
 			return false;
 	}
+	for (u32 i = 0; i < level->num_clones; ++i)
+		if (level->clones[i].required)
+			return false;
 	return true;
 }

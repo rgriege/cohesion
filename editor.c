@@ -131,18 +131,33 @@ void editor__rotate_tile_cw(struct map *map)
 {
 	const s32 i = editor_cursor.y;
 	const s32 j = editor_cursor.x;
-	if (map->tiles[i][j].type == TILE_ACTOR) {
+	switch (map->tiles[i][j].type) {
+	case TILE_BLANK:
+		map->tiles[i][j].type = TILE_HALL;
+	break;
+	case TILE_WALL:
+		map->tiles[i][j].type = TILE_HALL;
+	break;
+	case TILE_HALL:
+		map->tiles[i][j].type = TILE_ACTOR;
+		map->actor_controlled_by_player[editor__tile_actor_idx(map, i, j)] = 0;
+	break;
+	case TILE_ACTOR:;
 		const u32 actor_idx = editor__tile_actor_idx(map, i, j);
 		if (map->actor_controlled_by_player[actor_idx] == PLAYER_CNT_MAX - 1)
-			map->tiles[i][j].type = (map->tiles[i][j].type + 1) % (TILE_DOOR + 1);
+			map->tiles[i][j].type = TILE_CLONE;
 		else
 			++map->actor_controlled_by_player[actor_idx];
-	} else {
-		map->tiles[i][j].type = (map->tiles[i][j].type + 1) % (TILE_DOOR + 1);
-		if (map->tiles[i][j].type == TILE_ACTOR) {
-			const u32 actor_idx = editor__tile_actor_idx(map, i, j);
-			map->actor_controlled_by_player[actor_idx] = 0;
-		}
+	break;
+	case TILE_CLONE:
+		map->tiles[i][j].type = TILE_CLONE2;
+	break;
+	case TILE_DOOR:
+		map->tiles[i][j].type = TILE_BLANK;
+	break;
+	case TILE_CLONE2:
+		map->tiles[i][j].type = TILE_DOOR;
+	break;
 	}
 }
 
@@ -151,18 +166,34 @@ void editor__rotate_tile_ccw(struct map *map)
 {
 	const s32 i = editor_cursor.y;
 	const s32 j = editor_cursor.x;
-	if (map->tiles[i][j].type == TILE_ACTOR) {
+	switch (map->tiles[i][j].type) {
+	case TILE_BLANK:
+		map->tiles[i][j].type = TILE_DOOR;
+	break;
+	case TILE_WALL:
+		map->tiles[i][j].type = TILE_BLANK;
+	break;
+	case TILE_HALL:
+		map->tiles[i][j].type = TILE_BLANK;
+	break;
+	case TILE_ACTOR:;
 		const u32 actor_idx = editor__tile_actor_idx(map, i, j);
 		if (map->actor_controlled_by_player[actor_idx] == 0)
-			map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
+			map->tiles[i][j].type = TILE_HALL;
 		else
 			--map->actor_controlled_by_player[actor_idx];
-	} else {
-		map->tiles[i][j].type = (map->tiles[i][j].type + TILE_DOOR) % (TILE_DOOR + 1);
-		if (map->tiles[i][j].type == TILE_ACTOR) {
-			const u32 actor_idx = editor__tile_actor_idx(map, i, j);
-			map->actor_controlled_by_player[actor_idx] = PLAYER_CNT_MAX - 1;
-		}
+	break;
+	case TILE_CLONE:
+		map->tiles[i][j].type = TILE_ACTOR;
+		map->actor_controlled_by_player[editor__tile_actor_idx(map, i, j)]
+			= PLAYER_CNT_MAX - 1;
+	break;
+	case TILE_DOOR:
+		map->tiles[i][j].type = TILE_CLONE2;
+	break;
+	case TILE_CLONE2:
+		map->tiles[i][j].type = TILE_CLONE;
+	break;
 	}
 }
 
@@ -208,11 +239,14 @@ void editor__cleanup_map_border(struct map *map)
 					editor__cursor_move_to(i, j, &num_moves);
 					change_cnt += num_moves;
 
-					while (map->tiles[i][j].type != TILE_WALL) {
+					while (map->tiles[i][j].type != TILE_BLANK) {
 						editor__rotate_tile_cw(map);
 						history_push(&editor_player.history, ACTION_ROTATE_CW, 0);
 						++change_cnt;
 					}
+					map->tiles[i][j].type = TILE_WALL;
+					history_push(&editor_player.history, ACTION_ROTATE_CW, 0);
+					++change_cnt;
 				}
 			break;
 			case TILE_WALL:
@@ -231,6 +265,7 @@ void editor__cleanup_map_border(struct map *map)
 			case TILE_HALL:
 			case TILE_ACTOR:
 			case TILE_CLONE:
+			case TILE_CLONE2:
 			case TILE_DOOR:
 			break;
 			}
