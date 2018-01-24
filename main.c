@@ -902,7 +902,8 @@ void play(u32 frame_milli)
 			}
 		}
 
-		move_actors(&level, players, frame_milli, milli_consumed);
+		if (!level_complete(&level))
+			move_actors(&level, players, frame_milli, milli_consumed);
 
 		for (u32 i = 0; i < level.num_actors; ++i)
 			if (level.actors[i].dir == DIR_NONE)
