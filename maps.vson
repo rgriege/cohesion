@@ -38,13 +38,13 @@ height: 5
 0
 desc: avoid the clones
 tip: if you get stuck, press Z to undo or C to reset
-width: 9
+width: 10
 height: 5
-011111000
-112221111
-122222421
-132422251
-111111111
+0111111111
+1122224251
+1222222221
+1324222211
+1111111110
 0
 desc: ccw
 tip: press Q to rotate counter-clockwise
