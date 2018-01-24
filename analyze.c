@@ -332,7 +332,7 @@ int main(int argc, char *const argv[])
 	       "solutions", "steps");
 	if (map == ~0) {
 		array_iterate(maps, i, n) {
-			map_stats(&maps[i], &stats, false);
+			map_stats(&maps[i], &stats, detail);
 			printf("%10u,%10u,%10u,%10u,%10u,%10u\n", i + 1, stats.num_actors, stats.num_clones,
 						 stats.action_space, stats.num_solutions, stats.min_solution_steps);
 		}
