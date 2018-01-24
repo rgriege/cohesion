@@ -8,9 +8,38 @@ SOURCES := action.c actor.c audio.c disk.c editor.c history.c key.c level.c play
 OBJECTS := $(SOURCES:c=o)
 SOUNDS_DESKTOP := $(wildcard *.aiff)
 SOUNDS_WEB = $(SOUNDS_DESKTOP:aiff=mp3)
-RESOURCES_CORE := $(wildcard *.png) maps.vson Roboto.ttf
+IMAGES := \
+	sprites/actor/down_0.png \
+	sprites/actor/up_1.png \
+	sprites/actor/right_0.png \
+	sprites/actor/up_0.png \
+	sprites/actor/left_0.png \
+	sprites/actor/down_2.png \
+	sprites/actor/left_1.png \
+	sprites/actor/down_1.png \
+	sprites/actor/right_2.png \
+	sprites/actor/left_2.png \
+	sprites/actor/up_2.png \
+	sprites/actor/right_1.png \
+	sprites/clone/ \
+	sprites/clone2/ \
+	sprites/ui/sound.png \
+	sprites/ui/reset.png \
+	sprites/ui/music.png \
+	sprites/ui/settings.png
+RESOURCES_CORE := $(IMAGES) maps.vson Roboto.ttf
 RESOURCES_DESKTOP = $(SOUNDS_DESKTOP) $(RESOURCES_CORE)
 RESOURCES_WEB = $(SOUNDS_WEB) $(RESOURCES_CORE)
+
+sprites/clone/: $(wildcard sprites/actor/*.png)
+	mkdir sprites/clone/
+	cp sprites/actor/*.png sprites/clone/
+	gimp -i -b '(colorize "sprites/clone/*.png" 191 70 0)' -b '(gimp-quit 0)'
+
+sprites/clone2/: $(wildcard sprites/actor/*.png)
+	mkdir sprites/clone2/
+	cp sprites/actor/*.png sprites/clone2/
+	gimp -i -b '(colorize "sprites/clone2/*.png" 290 70 0)' -b '(gimp-quit 0)'
 
 cohesion: $(OBJECTS) main.o $(RESOURCES_DESKTOP)
 	$(CC) $(CCFLAGS) -o cohesion $(OBJECTS) main.o $(LFLAGS)
@@ -38,3 +67,5 @@ clean:
 	rm -f index.html cohesion.js cohesion.wasm cohesion.data
 	rm -f cohesion.7z
 	rm -f $(SOUNDS_WEB)
+	rm -rf sprites/clone
+	rm -rf sprites/clone2

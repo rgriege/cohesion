@@ -714,7 +714,7 @@ void play(u32 frame_milli)
 
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
 
-		if (gui_btn_img(gui, x, y, 30, 30, "music.png", IMG_CENTERED) == BTN_PRESS) {
+		if (gui_btn_img(gui, x, y, 30, 30, "sprites/ui/music.png", IMG_CENTERED) == BTN_PRESS) {
 			music_toggle();
 			save_settings();
 		}
@@ -725,7 +725,7 @@ void play(u32 frame_milli)
 
 		x += dim;
 
-		if (gui_btn_img(gui, x, y, 30, 30, "sound.png", IMG_CENTERED) == BTN_PRESS) {
+		if (gui_btn_img(gui, x, y, 30, 30, "sprites/ui/sound.png", IMG_CENTERED) == BTN_PRESS) {
 			sound_toggle();
 			save_settings();
 		}
@@ -736,7 +736,7 @@ void play(u32 frame_milli)
 
 		x += dim;
 
-		if (gui_btn_img(gui, x, y, 30, 30, "settings.png", IMG_CENTERED) == BTN_PRESS) {
+		if (gui_btn_img(gui, x, y, 30, 30, "sprites/ui/settings.png", IMG_CENTERED) == BTN_PRESS) {
 			if (settings_panel.hidden)
 				settings_panel.hidden = false;
 			else
@@ -752,7 +752,7 @@ void play(u32 frame_milli)
 	if (!level.complete) {
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
 		if (gui_btn_img(gui, offset.x + level.map.dim.x * TILE_SIZE / 2 - 15,
-		                offset.y - 50, 30, 30, "reset.png", IMG_CENTERED) == BTN_PRESS)
+		                offset.y - 50, 30, 30, "sprites/ui/reset.png", IMG_CENTERED) == BTN_PRESS)
 			level_init(&level, players, &maps[level_idx]);
 		gui_style_pop(gui);
 	}
