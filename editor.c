@@ -445,7 +445,8 @@ void editor_update(gui_t *gui, u32 *map_to_play)
 				if (type == TILE_ACTOR) {
 					char buf[8];
 					sprintf(buf, "%u", editor_map->actor_controlled_by_player[actor_idx] + 1);
-					gui_txt_styled(gui, x, y, TILE_SIZE, TILE_SIZE, buf, &gui_style(gui)->txt);
+					gui_txt(gui, x + TILE_SIZE / 2, y + TILE_SIZE / 2,
+					        TILE_SIZE, buf, g_white, GUI_ALIGN_MIDCENTER);
 					++actor_idx;
 				}
 			}

@@ -10,6 +10,8 @@ void actor_init(struct actor *actor, s32 x, s32 y, struct level *level)
 	actor->tile = (v2i){ .x = x, .y = y };
 	actor->pos = v2i_to_v2f(v2i_scale(actor->tile, TILE_SIZE));
 	actor->dir = DIR_NONE;
+	actor->facing = DIR_DOWN;
+	actor->anim_milli = 0;
 	actor->num_clones = 0;
 	actor_entered_tile(actor, level, NULL);
 }

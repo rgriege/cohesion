@@ -19,6 +19,7 @@ void level_init(struct level *level, struct player players[], const struct map *
 	level->num_clones = 0;
 	for (s32 i = 0; i < map->dim.y; ++i) {
 		for (s32 j = 0; j < map->dim.x; ++j) {
+			level->map.tiles[i][j].t = 0.f;
 #ifdef SHOW_TRAVELLED
 			level->map.tiles[i][j].travelled = false;
 #endif

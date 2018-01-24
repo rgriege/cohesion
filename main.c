@@ -18,6 +18,8 @@
 #include "level.h"
 #include "editor.h"
 
+static const color_t text_color = { .r=0x22, .g=0x1f, .b=0x1f, .a=0xff };
+
 /* TODO: find a better way to to do play/fx globals */
 struct
 {
@@ -51,6 +53,17 @@ v2i perp(v2i v, enum action action)
 	}
 	assert(false);
 	return v;
+}
+
+static
+color_t color_lerp(color_t a, color_t b, r32 t)
+{
+	return (color_t) {
+		.r = (u8)(a.r * t + b.r * (1.f - t)),
+		.g = (u8)(a.g * t + b.g * (1.f - t)),
+		.b = (u8)(a.b * t + b.b * (1.f - t)),
+		.a = (u8)(a.a * t + b.a * (1.f - t)),
+	};
 }
 
 static
@@ -149,6 +162,25 @@ void undo(struct player *player, struct level *level)
 }
 
 static
+const char *dir_to_string(enum dir dir)
+{
+	switch (dir) {
+	case DIR_NONE:
+		return "none";
+	case DIR_UP:
+		return "up";
+	case DIR_DOWN:
+		return "down";
+	case DIR_LEFT:
+		return "left";
+	case DIR_RIGHT:
+		return "right";
+	}
+	assert(false);
+	return "none";
+}
+
+static
 void execute_action(enum action action, struct player *player, struct level *level)
 {
 	enum dir dir;
@@ -163,6 +195,7 @@ void execute_action(enum action action, struct player *player, struct level *lev
 		dir = g_action_dir[action];
 		for (u32 i = 0; i < player->num_actors; ++i) {
 			actor = player->actors[i];
+			actor->facing = dir;
 			actor->dir = dir;
 			v2i_add_eq(&actor->tile, g_dir_vec[dir]);
 		}
@@ -172,13 +205,8 @@ void execute_action(enum action action, struct player *player, struct level *lev
 	case ACTION_ROTATE_CW:
 		for (u32 i = 0; i < player->num_actors; ++i) {
 			actor = player->actors[i];
-			for (u32 j = 0; j < actor->num_clones; ++j) {
-				dissolve_effect_add(glob.dissolve_effects, *glob.offset,
-														v2i_add(actor->tile, actor->clones[j]),
-														g_tile_fills[TILE_CLONE],
-														ROTATION_EFFECT_DURATION_MILLI);
+			for (u32 j = 0; j < actor->num_clones; ++j)
 				actor->clones[j] = perp(actor->clones[j], action);
-			}
 			actor_entered_tile(actor, level, &num_clones_attached);
 			history_push(&player->history, action, num_clones_attached);
 		}
@@ -215,17 +243,40 @@ void execute_action(enum action action, struct player *player, struct level *lev
 	}
 }
 
+#define ANIM_FRAMES 4
+
+struct {
+	struct {
+		img_t *frames[ANIM_FRAMES];
+	} facing[4];
+} anims[2];
+
 static
-void render_actor(gui_t *gui, v2i offset, v2i pos, color_t color)
+void render_figure(gui_t *gui, v2i pos, enum dir dir, b32 clone, u32 anim_milli)
 {
-	gui_rect(gui, offset.x + 2 + pos.x, offset.y + 2 + pos.y,
-	         TILE_SIZE - 4, TILE_SIZE - 4, color, g_nocolor);
+	const u32 total_anim_milli = 1000 * (2 * TILE_SIZE) / WALK_SPEED;
+	const u32 anim_frame = (anim_milli / (total_anim_milli / ANIM_FRAMES)) % ANIM_FRAMES;
+	const img_t *img = anims[clone].facing[dir-1].frames[anim_frame];
+	const r32 s = TILE_SIZE / (r32)img->texture.width;
+	gui_img_ex(gui, pos.x, pos.y + TILE_SIZE / 4, img, s, s, 1.f);
+}
+
+static
+void render_actor(gui_t *gui, v2i pos, enum dir dir, u32 anim_milli)
+{
+	render_figure(gui, pos, dir, 0, anim_milli);
+}
+
+static
+void render_clone(gui_t *gui, v2i pos, b32 required, enum dir dir, u32 anim_milli)
+{
+	render_figure(gui, pos, dir, 1 + required, anim_milli);
 }
 
 static
 void door_effect_add(array(struct effect2) *door_effects, s32 x, s32 y)
 {
-#ifdef SHOW_EFFECTS
+#ifdef ASDF // SHOW_EFFECTS
 	const struct effect2 fx = {
 		.pos = { .x = x + rand() % TILE_SIZE, .y = y + rand() % TILE_SIZE },
 		.color = g_tile_fills[TILE_DOOR],
@@ -289,6 +340,7 @@ void move_actors(struct level *level, struct player players[],
 			} else {
 				milli_consumed[i] = frame_milli;
 				actor->pos.y = pos;
+				actor->anim_milli += walk_milli;
 			}
 		break;
 		case DIR_DOWN:
@@ -306,6 +358,7 @@ void move_actors(struct level *level, struct player players[],
 			} else {
 				milli_consumed[i] = frame_milli;
 				actor->pos.y = pos;
+				actor->anim_milli += walk_milli;
 			}
 		break;
 		case DIR_LEFT:
@@ -323,6 +376,7 @@ void move_actors(struct level *level, struct player players[],
 			} else {
 				milli_consumed[i] = frame_milli;
 				actor->pos.x = pos;
+				actor->anim_milli += walk_milli;
 			}
 		break;
 		case DIR_RIGHT:
@@ -340,6 +394,7 @@ void move_actors(struct level *level, struct player players[],
 			} else {
 				milli_consumed[i] = frame_milli;
 				actor->pos.x = pos;
+				actor->anim_milli += walk_milli;
 			}
 		break;
 		}
@@ -372,6 +427,7 @@ u32 num_players;
 u32 time_until_next_door_fx = 0;
 struct music music;
 struct sound sound_error, sound_slide, sound_swipe, sound_success;
+img_t imgs[2*4*3];
 array(struct map) maps;
 array(struct effect) bg_effects;
 array(struct effect) dissolve_effects;
@@ -399,6 +455,8 @@ int main(int argc, char *const argv[])
 	if (!gui)
 		return 1;
 
+	gui_style(gui)->bg_color = g_sky;
+
 	pgui_panel_init(gui, &settings_panel, TILE_SIZE, 2 * TILE_SIZE,
 	                MAP_DIM_MAX * TILE_SIZE, (MAP_DIM_MAX - 2) * TILE_SIZE,
 	                "", GUI_PANEL_CLOSABLE | GUI_PANEL_SCROLLBARS);
@@ -422,6 +480,31 @@ int main(int argc, char *const argv[])
 	check(sound_init(&sound_success, "success.aiff"));
 	check(music_init(&music, "score.aiff"));
 #endif
+
+	for (u32 i = 0; i < 4; ++i) {
+		const enum dir dir = i + 1;
+		for (u32 j = 0; j < 3; ++j) {
+			char fname[32];
+			snprintf(fname, 32, "sprites/actor/%s_%u.png", dir_to_string(dir), j);
+			check(img_load(&imgs[i*3+j], fname));
+		}
+	}
+	for (u32 i = 0; i < 4; ++i) {
+		const enum dir dir = i + 1;
+		for (u32 j = 0; j < 3; ++j) {
+			char fname[32];
+			snprintf(fname, 32, "sprites/clone/%s_%u.png", dir_to_string(dir), j);
+			check(img_load(&imgs[12+i*3+j], fname));
+		}
+	}
+	for (u32 i = 0; i < 2; ++i) {
+		for (u32 j = 0; j < 4; ++j) {
+			anims[i].facing[j].frames[0] = &imgs[i*12+j*3];
+			anims[i].facing[j].frames[1] = &imgs[i*12+j*3+1];
+			anims[i].facing[j].frames[2] = &imgs[i*12+j*3];
+			anims[i].facing[j].frames[3] = &imgs[i*12+j*3+2];
+		}
+	}
 
 	maps = array_create();
 
@@ -476,6 +559,8 @@ int main(int argc, char *const argv[])
 	array_destroy(dissolve_effects);
 	array_destroy(bg_effects);
 	array_destroy(maps);
+	for (u32 i = 0; i < countof(imgs); ++i)
+		img_destroy(&imgs[i]);
 	sound_destroy(&sound_swipe);
 	sound_destroy(&sound_slide);
 	sound_destroy(&sound_success);
@@ -539,7 +624,7 @@ void menu(u32 frame_milli)
 	const s32 h = 30;
 	const s32 x = screen.x / 2 - w / 2;
 	s32 y = screen.y / 2 + h;
-	gui_txt(gui, screen.x / 2, y + 50, 32, APP_NAME, g_white, GUI_ALIGN_CENTER);
+	gui_txt(gui, screen.x / 2, y + 50, 32, APP_NAME, text_color, GUI_ALIGN_CENTER);
 	/* TODO: support tabbing through 'selected' buttons in gui */
 	if (   (   gui_btn_txt(gui, x, y, w, h, "Solo") == BTN_PRESS
 	        || key_pressed(gui, KB_1))
@@ -604,11 +689,9 @@ void play(u32 frame_milli)
 	}
 
 	{
-		const s32 x = offset.x + level.map.dim.x * TILE_SIZE / 2;
-		const s32 y = offset.y + level.map.dim.y * TILE_SIZE;
 		char buf[16];
-		snprintf(buf, 16, "Level %u", level_idx + 1);
-		gui_txt(gui, x, y + 10, 20, buf, g_white, GUI_ALIGN_CENTER);
+		snprintf(buf, 16, "%u/%u", level_idx + 1, array_sz(maps));
+		gui_txt(gui, 5, screen.y - 5, 20, buf, text_color, GUI_ALIGN_LEFT | GUI_ALIGN_TOP);
 	}
 
 	{
@@ -653,7 +736,7 @@ void play(u32 frame_milli)
 	}
 
 	gui_txt(gui, offset.x + level.map.dim.x * TILE_SIZE / 2, offset.y - 20, 14,
-	        level.map.tip, g_white, GUI_ALIGN_CENTER);
+	        level.map.tip, text_color, GUI_ALIGN_CENTER);
 
 #if 0
 	if (!level.complete) {
@@ -671,22 +754,37 @@ void play(u32 frame_milli)
 			for (s32 j = 0; j < level.map.dim.x; ++j) {
 				const s32 x = offset.x + j * TILE_SIZE;
 				const enum tile_type type = level.map.tiles[i][j].type;
+				const s32 o2 = TILE_SIZE / 10;
+				const s32 s2 = TILE_SIZE - 2 * o2;
+				const s32 h3 = TILE_SIZE / 5;
+				color_t c;
 				switch (type) {
 				case TILE_BLANK:
 				case TILE_ACTOR:
 				case TILE_CLONE:
 				break;
-				case TILE_HALL:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-					         g_tile_fills[TILE_HALL], gui_style(gui)->bg_color);
+				case TILE_HALL:;
+					c = color_lerp(level.map.tiles[i][j].active_color, g_stone,
+					               level.map.tiles[i][j].t);
+					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_grass, g_nocolor);
+					gui_rect(gui, x+o2, y+o2, s2, s2, c, g_nocolor);
+					gui_line(gui, x+o2, y+o2, x+TILE_SIZE-o2, y+o2, 3, g_stone_dark);
+					gui_line(gui, x+o2, y+o2, x+o2, y+TILE_SIZE-o2, 1, g_stone_dark);
+					if (i == 0 || level.map.tiles[i-1][j].type == TILE_WALL)
+						gui_rect(gui, x, y-h3, TILE_SIZE, h3, g_grass_dark, g_nocolor);
 				break;
 				case TILE_WALL:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-					         g_tile_fills[TILE_WALL], gui_style(gui)->bg_color);
 				break;
 				case TILE_DOOR:
-					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE,
-					         g_tile_fills[TILE_DOOR], gui_style(gui)->bg_color);
+					c = color_lerp(level.map.tiles[i][j].active_color, g_stone,
+					               level.map.tiles[i][j].t);
+					gui_rect(gui, x, y, TILE_SIZE, TILE_SIZE, g_door, g_nocolor);
+					gui_rect(gui, x+o2, y+o2, s2, s2, c, g_nocolor);
+					gui_line(gui, x+o2, y+o2, x+TILE_SIZE-o2, y+o2, 3, g_stone_dark);
+					gui_line(gui, x+o2, y+o2, x+o2, y+TILE_SIZE-o2, 1, g_stone_dark);
+					if (i == 0 || level.map.tiles[i-1][j].type == TILE_WALL)
+						gui_rect(gui, x, y-h3, TILE_SIZE, h3, g_door_dark, g_nocolor);
+
 					if (frame_milli >= time_until_next_door_fx) {
 						door_effect_add(&door_effects, x, y);
 						time_until_next_door_fx = 100 + rand() % 100;
@@ -753,25 +851,6 @@ void play(u32 frame_milli)
 		}
 	}
 
-	if (!level.complete) {
-		for (u32 i = 0; i < level.num_clones; ++i) {
-			const v2i pos = v2i_scale(level.clones[i], TILE_SIZE);
-			render_actor(gui, offset, pos, g_tile_fills[TILE_CLONE]);
-		}
-
-		for (u32 i = 0; i < level.num_actors; ++i) {
-			const struct actor *actor = &level.actors[i];
-			const v2i actor_pos = v2f_to_v2i(actor->pos);
-			render_actor(gui, offset, actor_pos, g_tile_fills[TILE_ACTOR]);
-			for (u32 j = 0; j < actor->num_clones; ++j) {
-				const v2i clone_pos
-					= v2i_add(actor_pos, v2i_scale(actor->clones[j], TILE_SIZE));
-				render_actor(gui, offset, clone_pos, g_tile_fills[TILE_CLONE]);
-			}
-		}
-	}
-
-
 	if (settings_panel.hidden) {
 		u32 milli_consumed[ACTOR_CNT_MAX] = {0};
 		move_actors(&level, players, frame_milli, milli_consumed);
@@ -784,10 +863,21 @@ void play(u32 frame_milli)
 				continue;
 
 			if (action_is_solo(action)) {
-				if (can_execute_solo_action(action, player, &level))
+				if (can_execute_solo_action(action, player, &level)) {
 					execute_action(action, player, &level);
-				else
+				} else {
+					switch (action) {
+					case ACTION_MOVE_UP:
+					case ACTION_MOVE_DOWN:
+					case ACTION_MOVE_LEFT:
+					case ACTION_MOVE_RIGHT:
+						for (u32 j = 0; j < player->num_actors; ++j)
+							player->actors[j]->facing = g_action_dir[action];
+					default:
+					break;
+					}
 					sound_play(&sound_error);
+				}
 			} else if (num_players == 1) {
 				execute_action(action, player, &level);
 			} else if (all_other_players_pending_action(players, num_players, i, action)) {
@@ -802,6 +892,10 @@ void play(u32 frame_milli)
 		}
 
 		move_actors(&level, players, frame_milli, milli_consumed);
+
+		for (u32 i = 0; i < level.num_actors; ++i)
+			if (level.actors[i].dir == DIR_NONE)
+				level.actors[i].anim_milli = 0;
 
 		{
 			const s32 x = offset.x + level.map.dim.x * TILE_SIZE / 2;
@@ -833,11 +927,49 @@ void play(u32 frame_milli)
 		}
 	}
 
+
+	if (!level.complete) {
+		const r32 dt = (r32)frame_milli / STONE_GLOW_EFFECT_DURATION_MILLI;
+		for (s32 i = 0; i < level.map.dim.y; ++i)
+			for (s32 j = 0; j < level.map.dim.x; ++j)
+				if (   level.map.tiles[i][j].type == TILE_HALL
+				    || level.map.tiles[i][j].type == TILE_DOOR)
+					level.map.tiles[i][j].t = max(level.map.tiles[i][j].t - dt, 0.f);
+
+		for (u32 i = 0; i < level.num_actors; ++i) {
+			const v2i p = level.actors[i].tile;
+			level.map.tiles[p.y][p.x].active_color = g_tile_fills[TILE_ACTOR];
+			level.map.tiles[p.y][p.x].t = 1.f;
+			for (u32 j = 0; j < level.actors[i].num_clones; ++j) {
+				const v2i p2 = v2i_add(p, level.actors[i].clones[j]);
+				level.map.tiles[p2.y][p2.x].active_color = g_tile_fills[TILE_CLONE];
+				level.map.tiles[p2.y][p2.x].t = 1.f;
+			}
+		}
+
+		for (u32 i = 0; i < level.num_clones; ++i) {
+			const v2i pos = v2i_add(offset, v2i_scale(level.clones[i], TILE_SIZE));
+			render_clone(gui, pos, DIR_DOWN, 0);
+		}
+
+		for (u32 i = 0; i < level.num_actors; ++i) {
+			const struct actor *actor = &level.actors[i];
+			const v2i actor_pos = v2i_add(offset, v2f_to_v2i(actor->pos));
+			render_actor(gui, actor_pos, actor->facing, actor->anim_milli);
+			for (u32 j = 0; j < actor->num_clones; ++j) {
+				const v2i clone_pos
+					= v2i_add(actor_pos, v2i_scale(actor->clones[j], TILE_SIZE));
+				render_clone(gui, clone_pos, actor->facing, actor->anim_milli);
+			}
+		}
+	}
+
+
 	if (!level.complete && level_complete(&level)) {
 		for (s32 i = 0; i < level.map.dim.y; ++i) {
 			for (s32 j = 0; j < level.map.dim.x; ++j) {
 				const v2i tile = { .x = j, .y = i };
-				if (level.map.tiles[i][j].type != TILE_BLANK)
+				if (level.map.tiles[i][j].type == TILE_HALL)
 					dissolve_effect_add(&dissolve_effects, offset, tile,
 					                    g_tile_fills[level.map.tiles[i][j].type],
 					                    LEVEL_COMPLETE_EFFECT_DURATION_MILLI);

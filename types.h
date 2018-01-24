@@ -9,6 +9,8 @@ enum tile_type {
 
 struct tile {
 	enum tile_type type;
+	color_t active_color;
+	r32 t;
 #ifdef SHOW_TRAVELLED
 	b32 travelled;
 #endif
@@ -34,6 +36,8 @@ struct actor {
 	v2i tile;
 	v2f pos;
 	enum dir dir;
+	enum dir facing;
+	u32 anim_milli;
 	v2i clones[CLONE_CNT_MAX];
 	u32 num_clones;
 };
