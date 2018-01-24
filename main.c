@@ -819,7 +819,7 @@ void play(u32 frame_milli)
 		fx->t += delta;
 		if (fx->t <= 1.f) {
 			const r32 sz = TILE_SIZE / 2 * fx->t;
-			const m3f m = m3f_init_rot(fx->rotation_start + fx->rotation_rate * fx->t);
+			const m3f m = m3f_init_rotation(fx->rotation_start + fx->rotation_rate * fx->t);
 			v2f square[4] = {
 				v2f_add(m3f_mul_v2(m, (v2f){ .x =  sz / 2, .y =  sz / 2 }), fx->pos),
 				v2f_add(m3f_mul_v2(m, (v2f){ .x = -sz / 2, .y =  sz / 2 }), fx->pos),
@@ -832,7 +832,7 @@ void play(u32 frame_milli)
 			++i;
 		} else if (fx->t <= 2.f) {
 			const r32 sz = TILE_SIZE / 2 * (2.f - fx->t);
-			const m3f m = m3f_init_rot(fx->rotation_start + fx->rotation_rate * fx->t);
+			const m3f m = m3f_init_rotation(fx->rotation_start + fx->rotation_rate * fx->t);
 			v2f square[4] = {
 				v2f_add(m3f_mul_v2(m, (v2f){ .x =  sz / 2, .y =  sz / 2 }), fx->pos),
 				v2f_add(m3f_mul_v2(m, (v2f){ .x = -sz / 2, .y =  sz / 2 }), fx->pos),
