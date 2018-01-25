@@ -4,6 +4,7 @@
 #endif
 #include "config.h"
 #define VIOLET_IMPLEMENTATION
+#define GUI_FONT_FILE_PATH "data/fonts/Roboto.ttf"
 #include "violet/all.h"
 #include "key.h"
 #include "audio.h"
@@ -443,8 +444,8 @@ array(struct effect) dissolve_effects;
 array(struct effect2) door_effects;
 v2i screen, offset;
 v2i cursor;
-const char *g_solo_maps_file_name = "maps.vson";
-const char *g_coop_maps_file_name = "maps_coop.vson";
+const char *g_solo_maps_file_name = "data/maps/maps.vson";
+const char *g_coop_maps_file_name = "data/maps/maps_coop.vson";
 char g_current_maps_file_name[128];
 
 
@@ -477,17 +478,17 @@ int main(int argc, char *const argv[])
 		goto err_audio;
 
 #ifdef __EMSCRIPTEN__
-	check(sound_init(&sound_error, "sounds/error.mp3"));
-	check(sound_init(&sound_slide, "sounds/slide.mp3"));
-	check(sound_init(&sound_swipe, "sounds/swipe.mp3"));
-	check(sound_init(&sound_success, "sounds/success.mp3"));
-	check(music_init(&music, "sounds/score.mp3"));
+	check(sound_init(&sound_error, "data/sounds/error.mp3"));
+	check(sound_init(&sound_slide, "data/sounds/slide.mp3"));
+	check(sound_init(&sound_swipe, "data/sounds/swipe.mp3"));
+	check(sound_init(&sound_success, "data/sounds/success.mp3"));
+	check(music_init(&music, "data/sounds/score.mp3"));
 #else
-	check(sound_init(&sound_error, "sounds/error.aiff"));
-	check(sound_init(&sound_slide, "sounds/slide.aiff"));
-	check(sound_init(&sound_swipe, "sounds/swipe.aiff"));
-	check(sound_init(&sound_success, "sounds/success.aiff"));
-	check(music_init(&music, "sounds/score.aiff"));
+	check(sound_init(&sound_error, "data/sounds/error.aiff"));
+	check(sound_init(&sound_slide, "data/sounds/slide.aiff"));
+	check(sound_init(&sound_swipe, "data/sounds/swipe.aiff"));
+	check(sound_init(&sound_success, "data/sounds/success.aiff"));
+	check(music_init(&music, "data/sounds/score.aiff"));
 #endif
 
 	{
@@ -496,8 +497,8 @@ int main(int argc, char *const argv[])
 			for (u32 i = 0; i < 4; ++i) {
 				const enum dir dir = i + 1;
 				for (u32 j = 0; j < 3; ++j) {
-					char fname[32];
-					snprintf(fname, 32, "sprites/%s/%s_%u.png", names[k], dir_to_string(dir), j);
+					char fname[64];
+					snprintf(B2PS(fname), "data/sprites/%s/%s_%u.png", names[k], dir_to_string(dir), j);
 					check(img_load(&imgs[k*12+i*3+j], fname));
 				}
 			}
@@ -606,6 +607,7 @@ void frame(void)
 			mode = MENU;
 	break;
 	case EDIT:;
+#ifndef __EMSCRIPTEN__
 		u32 level_to_play;
 		editor_update(gui, &level_to_play);
 		if (level_to_play < array_sz(maps)) {
@@ -618,6 +620,7 @@ void frame(void)
 		} else if (key_pressed(gui, KB_ESCAPE)) {
 			mode = MENU;
 		}
+#endif
 	break;
 	}
 
@@ -654,6 +657,7 @@ void menu(u32 frame_milli)
 		background_generate(&bg_effects, screen);
 	}
 	y -= h;
+#ifndef __EMSCRIPTEN__
 	if (gui_btn_txt(gui, x, y, w, h, "Edit") == BTN_PRESS || key_pressed(gui, KB_3)) {
 		mode = EDIT;
 		level_idx = 0;
@@ -670,6 +674,7 @@ void menu(u32 frame_milli)
 		editor_edit_map(&maps, level_idx);
 	}
 	y -= h;
+#endif
 	if (gui_btn_txt(gui, x, y, w, h, "Exit") == BTN_PRESS)
 		quit = true;
 }
@@ -714,7 +719,7 @@ void play(u32 frame_milli)
 
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
 
-		if (gui_btn_img(gui, x, y, 30, 30, "sprites/ui/music.png", IMG_CENTERED) == BTN_PRESS) {
+		if (gui_btn_img(gui, x, y, 30, 30, "data/sprites/ui/music.png", IMG_CENTERED) == BTN_PRESS) {
 			music_toggle();
 			save_settings();
 		}
@@ -725,7 +730,7 @@ void play(u32 frame_milli)
 
 		x += dim;
 
-		if (gui_btn_img(gui, x, y, 30, 30, "sprites/ui/sound.png", IMG_CENTERED) == BTN_PRESS) {
+		if (gui_btn_img(gui, x, y, 30, 30, "data/sprites/ui/sound.png", IMG_CENTERED) == BTN_PRESS) {
 			sound_toggle();
 			save_settings();
 		}
@@ -736,7 +741,7 @@ void play(u32 frame_milli)
 
 		x += dim;
 
-		if (gui_btn_img(gui, x, y, 30, 30, "sprites/ui/settings.png", IMG_CENTERED) == BTN_PRESS) {
+		if (gui_btn_img(gui, x, y, 30, 30, "data/sprites/ui/settings.png", IMG_CENTERED) == BTN_PRESS) {
 			if (settings_panel.hidden)
 				settings_panel.hidden = false;
 			else
@@ -752,7 +757,7 @@ void play(u32 frame_milli)
 	if (!level.complete) {
 		gui_style_push(gui, btn, g_gui_style_invis.btn);
 		if (gui_btn_img(gui, offset.x + level.map.dim.x * TILE_SIZE / 2 - 15,
-		                offset.y - 50, 30, 30, "sprites/ui/reset.png", IMG_CENTERED) == BTN_PRESS)
+		                offset.y - 50, 30, 30, "data/sprites/ui/reset.png", IMG_CENTERED) == BTN_PRESS)
 			level_init(&level, players, &maps[level_idx]);
 		gui_style_pop(gui);
 	}
